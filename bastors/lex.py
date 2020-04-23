@@ -41,6 +41,7 @@ class TokenEnum(Enum):
     COMMA = 6
     LPAREN = 7
     RPAREN = 8
+    COMMENT = 9
 
 
 # The namedtuple Token represent a valid token of out flavor of TinyBasic
@@ -103,11 +104,21 @@ class Lexer:  # pylint: disable=too-few-public-methods
         col = 0
 
         lexeme = ""
+        is_comment = False
         for idx, char in enumerate(self._program):
             col = col + 1
             if char == "\n":
                 line = line + 1
                 col = 0
+                if is_comment:
+                    if len(lexeme) > 0:
+                        tokens.append(Token(lexeme, TokenEnum.COMMENT, line, col))
+                        lexeme = ""
+                    is_comment = False
+
+            if is_comment:
+                lexeme += char
+                continue
 
             if char not in string.whitespace or lexeme.startswith('"'):
                 lexeme += char
@@ -155,6 +166,11 @@ class Lexer:  # pylint: disable=too-few-public-methods
                     if lexeme in STATEMENTS:
                         token = Token(lexeme, TokenEnum.STATEMENT, line, start)
                         tokens.append(token)
+                        lexeme = ""
+                        continue
+
+                    if lexeme == "REM":
+                        is_comment = True
                         lexeme = ""
                         continue
 

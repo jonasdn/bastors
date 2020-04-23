@@ -120,7 +120,9 @@ class Parser:  # pylint: disable=too-few-public-methods
             except StopIteration:
                 pass
         else:
-            self.__parse_error("expected token %s" % token_type)
+            self.__parse_error(
+                "expected token %s was %s" % (token_type, self._current_token.type)
+            )
 
     def __parse_factor(self):
         """factor ::= var | number | (expression)"""
@@ -274,7 +276,9 @@ class Parser:  # pylint: disable=too-few-public-methods
             # Then parse next statement and add it to the future then-clause
             (number, statement) = self.__process_line()
             if statement is None:
-                raise ParseError("no such GOTO expression (%s)" % expr)
+                line = self._current_token.line
+                col = self._current_token.col
+                raise ParseError("no such GOTO expression (%s)" % expr, line, col)
 
             statements.append((number, statement))
 
@@ -303,6 +307,9 @@ class Parser:  # pylint: disable=too-few-public-methods
         )
 
     def __process_line(self):
+        while self._current_token.type == lex.TokenEnum.COMMENT:
+            self.__eat(lex.TokenEnum.COMMENT)
+
         if self._current_token.type == lex.TokenEnum.NUMBER:
             number = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)

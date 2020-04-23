@@ -133,6 +133,26 @@ class TestLex(unittest.TestCase):
         ]
         self.__assert_tokens(program, expected)
 
+    def test_REM(self):
+        expected = [
+            TokenEnum.COMMENT,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.STRING,
+            TokenEnum.COMMENT,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.NUMBER,
+        ]
+        program = """
+                    REM
+                    REM --- This is a comment
+                    10 PRINT "HELLO WORLD"
+                    REM --- Another one
+                    20 GOTO 10
+                """
+        self.__assert_tokens(program, expected)
+
     def test_bad_statement(self):
         program = """ 10 PRINT "Hello World"
                       20 GOFO 10

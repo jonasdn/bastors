@@ -8,6 +8,7 @@ class TestParse(unittest.TestCase):
         program = """ 10 LET A=20
                       20 PRINT "Hello World"
                       30 GOTO A
+                      40 END
                   """
         try:
             parser = parse.Parser(program)
@@ -16,3 +17,18 @@ class TestParse(unittest.TestCase):
         except ParseError as err:
             self.assertEqual(err.line, 3)
             self.assertEqual(err.col, 31)
+
+    def test_comment(self):
+        program = """ REM
+                      REM --- This is a comment
+                      10 PRINT "HELLO WORLD"
+                      REM --- Another one
+                      20 GOTO 10
+                      30 END
+                 """
+        try:
+            parser = parse.Parser(program)
+            parser.parse()
+        except ParseError as err:
+            print(err)
+            self.assertTrue(False)
