@@ -1,0 +1,7 @@
+10 LET N=1
+20 IF N <> 1 GOTO 70
+30 PRINT "one"
+40 PRINT "two"
+50 LET N=N+2
+60 PRINT N
+70 END
