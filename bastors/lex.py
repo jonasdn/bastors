@@ -172,7 +172,7 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
                     self._lexeme = ""
                 continue
 
-            if self._lexeme.startswith('"'):
+            if char == '"' or self._lexeme.startswith('"'):
                 self._lexeme += char
                 if self.__string_literal(tokens, line, col):
                     self._lexeme = ""
