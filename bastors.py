@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import sys
+from bastors.lex import LexError
 from bastors.parse import Parser, ParseError
 from bastors.rustify import Rustify
 
@@ -21,6 +22,9 @@ if __name__ == "__main__":
         tree = Parser(program).parse()
     except ParseError as err:
         print("parse error: %s" % err)
+        sys.exit(1)
+    except LexError as err:
+        print("syntax error: %s [%d:%d]" % (err, err.line, err.col))
         sys.exit(1)
 
     out = open(args.output, "w") if args.output else sys.stdout
