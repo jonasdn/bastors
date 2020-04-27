@@ -1,4 +1,5 @@
 """ Converts a basic TinyBasic program (bas) to rust code (rs) """
+from collections import defaultdict
 from collections import namedtuple
 import bastors.parse as parse
 
@@ -59,48 +60,113 @@ class Rustify(Visitor):
         of visitor pattern, the base clase is defined in visitor.py """
 
     def __init__(self):
-        self._main = []
+        self._code = defaultdict(list)
+        self._variables = list()
         self._crates = set()
         self._indent = 1
+        self._context = "main"
 
-    def output(self, file):
-        """ Writes Rust code to the file specified in argument """
+    def __in_function(self):
+        return self._context != "main"
+
+    def __output_state(self, file):
+        if len(self._variables) > 0:
+            print("struct State {", file=file)
+            for var in self._variables:
+                print("%s%s: i32," % (" " * 4, var), file=file)
+            print("}\n", file=file)
+
+            init_state = "let mut state: State = State { "
+            for var in self._variables:
+                init_state += "%s: 0, " % var
+            init_state += " };"
+            self._code["main"].insert(0, Line(self._indent, init_state))
+
+    def __output_function(self, name, code, argument, file):
+        print("fn %s(%s) {" % (name, argument), file=file)
+        for line in code:
+            print("%s%s" % (line.indent * (" " * 4), line.code), file=file)
+        print("}\n", file=file)
+
+    def __output_functions(self, file):
+        for fn in sorted(self._code.keys()):
+            if fn != "main":
+                name = "f_%s" % fn
+                argument = "state: &mut State" if len(self._variables) > 0 else None
+            else:
+                name = fn
+                argument = None
+
+            self.__output_function(name, self._code[fn], argument or str(), file)
+
+    def __output_crates(self, file):
         for crate in sorted(self._crates):
             print("use %s;" % crate, file=file)
 
-        print("fn main() {", file=file)
-        for line in self._main:
-            print("%s%s" % (line.indent * (" " * 4), line.code), file=file)
-        print("}", file=file)
+    def output(self, file):
+        """ Writes Rust code to the file specified in argument """
+        self.__output_crates(file)
+        self.__output_state(file)
+        self.__output_functions(file)
 
     def visit_Program(self, node):
         """ Iterate through all statements in the TinyBasic program and
             generate Rust"""
-        for line in node.statements:
-            _, statement = line
-            self.visit(statement)
+        for context in node.statements.keys():
+            self._context = str(context)
+            for line in node.statements[context]:
+                _, statement = line
+                self.visit(statement)
 
     def visit_End(self, node):
-        self._crates.add("std::process")
-        self._main.append(Line(self._indent, "process::exit(0x0);"))
+        if self._context != "main":
+            self._crates.add("std::process")
+            self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
+
+    def visit_Function(self, node):
+        if len(self._variables) > 0:
+            if self.__in_function():
+                argument = "state"
+            else:
+                argument = "&mut state"
+        else:
+            argument = str()
+        code = "f_%s(%s);" % (node.number, argument)
+        self._code[self._context].append(Line(self._indent, code))
+
+    def __expression(self, exp):
+        if isinstance(exp, parse.VariableExpression):
+            return "state.%s" % exp.var
+
+        if isinstance(exp, parse.ArithmeticExpression):
+            return "%s %s %s" % (
+                self.__expression(exp.left),
+                exp.operator,
+                self.__expression(exp.right),
+            )
+
+        return str(exp)
 
     def visit_Let(self, let_node):
-        """ Generate Rust from TinyBasic LET, if this is a declaration use let
-            mut otherwise just assign. """
-        if let_node.declaration:
-            code = "let mut %s = %s;" % (let_node.var, let_node.exp)
-        else:
-            code = "%s = %s;" % (let_node.var, let_node.exp)
+        """ Generate Rust from TinyBasic LET """
 
-        self._main.append(Line(self._indent, code))
+        if let_node.lval.var not in self._variables:
+            self._variables.append(let_node.lval.var)
+
+        code = "%s = %s;" % (
+            self.__expression(let_node.lval),
+            self.__expression(let_node.rval),
+        )
+
+        self._code[self._context].append(Line(self._indent, code))
 
     def visit_Print(self, print_node):
         """ Generate Rust from TinyBasic PRINT, by ways of the println! macro
         and the: println!()"{}", arguments), notation. """
         num = len(print_node.exp_list)
-        arguments = ",".join(print_node.exp_list)
+        arguments = ",".join([self.__expression(exp) for exp in print_node.exp_list])
         code = 'println!("%s", %s);' % ("{}" * num, arguments)
-        self._main.append(Line(self._indent, code))
+        self._code[self._context].append(Line(self._indent, code))
 
     def visit_Loop(self, loop_node):
         """ Generate Rust code from a TinyBasic (IF/)GOTO loop.
@@ -118,7 +184,7 @@ class Rustify(Visitor):
                     }
                 }
         """
-        self._main.append(Line(self._indent, "loop {"))
+        self._code[self._context].append(Line(self._indent, "loop {"))
         self._indent = self._indent + 1
         for (_, statement) in loop_node.statements:
             self.visit(statement)
@@ -126,22 +192,22 @@ class Rustify(Visitor):
         if loop_node.conditions is not None:
             conditions = parse.invert_conditions(loop_node.conditions)
             code = "if %s {" % format_condition(conditions)
-            self._main.append(Line(self._indent, code))
-            self._main.append(Line(self._indent + 1, "break;"))
-            self._main.append(Line(self._indent, "}"))
+            self._code[self._context].append(Line(self._indent, code))
+            self._code[self._context].append(Line(self._indent + 1, "break;"))
+            self._code[self._context].append(Line(self._indent, "}"))
 
         self._indent = self._indent - 1
-        self._main.append(Line(self._indent, "}"))
+        self._code[self._context].append(Line(self._indent, "}"))
 
     def visit_If(self, if_node):
         """ Generate Rust code from TInyBasic IF statement, the grunt work is
             performed by the format_condition() function. """
         code = "if %s {" % format_condition(if_node.conditions)
-        self._main.append(Line(self._indent, code))
+        self._code[self._context].append(Line(self._indent, code))
 
         self._indent = self._indent + 1
         for _, statement in if_node.then:
             self.visit(statement)
         self._indent = self._indent - 1
 
-        self._main.append(Line(self._indent, "}"))
+        self._code[self._context].append(Line(self._indent, "}"))
