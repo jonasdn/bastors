@@ -249,42 +249,81 @@ class Parser:  # pylint: disable=too-few-public-methods
                 return idx
         return None
 
-    def __parse_goto(self, conditions):
-        """GOTO expression"""
-        try:
-            expr = int(self._current_token.value)
-        except ValueError:
-            line = self._current_token.line
-            col = self._current_token.col
-            raise ParseError("expected number [%d:%d]" % (line, col), line, col)
-        self.__eat(lex.TokenEnum.NUMBER)
-
-        idx = self.__find_idx(expr)
+    def __collect_statements(self, number):
+        statements = []
+        idx = self.__find_idx(number)
         if idx is not None:
-            loop_statements = self._statements[idx:]
-            del self._statements[idx:]
-            return Loop(conditions, loop_statements)
+            statements = self._statements[self._context][idx:]
+            del self._statements[self._context][idx:]
+            return (True, statements)
         #
         # If we get here, we have not seen the number refered to in the GOTO
         # statement yet, we expect to find it going forward.
         #
-        statements = []
         while True:
             # First check if following statement line number matches
             if self._current_token.type == lex.TokenEnum.NUMBER:
-                if self._current_token.value == str(expr):
+                if self._current_token.value == str(number):
                     break
             # Then parse next statement and add it to the future then-clause
-            (number, statement) = self.__process_line()
+            (_, statement) = self.__process_line()
             if statement is None:
                 line = self._current_token.line
                 col = self._current_token.col
-                raise ParseError("no such GOTO expression (%s)" % expr, line, col)
+                raise ParseError("no GOTO/GOSUB expression (%s)" % number, line, col)
 
             statements.append((number, statement))
+        return (False, statements)
 
-        if_stmt = If(invert_conditions(conditions), statements)
-        return if_stmt
+    def __parse_goto(self, conditions):
+        """
+        GOTO expression
+
+        We can currently handle three (two) kinds of GOTO situations.
+
+        1) The GOTO number has been seen:
+             10 PRINT "HELLO"
+             20 GOTO 10
+             30 END
+           We turn this into an unconditional loop.
+
+        2) The GOTO number has been seen and the previous statement is an
+           IF statement:
+            10 LET B=0
+            20 PRINT B
+            30 LET B=B+1
+            40 IF B<10 THEN GOTO 20
+            50 END
+           We turn this into a conditional loop.
+
+        3) The GOTO number is in the future and the previous statement is an
+           IF statement:
+             10 LET N=1
+             20 IF N <> 1 THEN GOTO 70
+             30 PRINT "one"
+             40 PRINT "two"
+             50 LET N=N+2
+             60 PRINT N
+             70 END
+        We turn this in to an if-statement with many statements in the
+        THEN block.
+        """
+        try:
+            number = int(self._current_token.value)
+            self.__eat(lex.TokenEnum.NUMBER)
+        except ValueError:
+            line = self._current_token.line
+            col = self._current_token.col
+            raise ParseError("expected number [%d:%d]" % (line, col), line, col)
+
+        # If this is a number we have already seen, then this is a loop back
+        # to that statement. Otherwise we see this as an if/else.
+        seen, statements = self.__collect_statements(number)
+        if seen:
+            return Loop(conditions, statements)
+        else:
+            return If(invert_conditions(conditions), statements)
+
 
     def __parse_statement(self):
         token = self._current_token
