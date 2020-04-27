@@ -80,6 +80,10 @@ class Rustify(Visitor):
             _, statement = line
             self.visit(statement)
 
+    def visit_End(self, node):
+        self._crates.add("std::process")
+        self._main.append(Line(self._indent, "process::exit(0x0);"))
+
     def visit_Let(self, let_node):
         """ Generate Rust from TinyBasic LET, if this is a declaration use let
             mut otherwise just assign. """

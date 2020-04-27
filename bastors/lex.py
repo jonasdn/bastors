@@ -42,6 +42,7 @@ class TokenEnum(Enum):
     LPAREN = 7
     RPAREN = 8
     COMMENT = 9
+    EOF = 10
 
 
 # The namedtuple Token represent a valid token of out flavor of TinyBasic

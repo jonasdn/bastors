@@ -74,6 +74,7 @@ Let = namedtuple("Let", ["var", "exp", "declaration"])
 If = namedtuple("If", ["conditions", "then"])
 Loop = namedtuple("Loop", ["conditions", "statements"])
 Print = namedtuple("Print", ["exp_list"])
+End = namedtuple("End", [])
 
 
 class ArithmeticExpression(
@@ -118,7 +119,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             try:
                 self._current_token = next(self._token_iter)
             except StopIteration:
-                pass
+                self._current_token = lex.Token("EOF", lex.TokenEnum.EOF, -1, -1)
         else:
             self.__parse_error(
                 "expected token %s was %s" % (token_type, self._current_token.type)
@@ -287,6 +288,9 @@ class Parser:  # pylint: disable=too-few-public-methods
 
     def __parse_statement(self):
         token = self._current_token
+        if token.type == lex.TokenEnum.EOF:
+            return None
+
         self.__eat(lex.TokenEnum.STATEMENT)
 
         if token.value == "LET":
@@ -298,7 +302,7 @@ class Parser:  # pylint: disable=too-few-public-methods
         if token.value == "GOTO":
             return self.__parse_goto(None)
         if token.value == "END":
-            return None
+            return End()
 
         raise ParseError(
             "Unknown statement: %s" % token.value,
