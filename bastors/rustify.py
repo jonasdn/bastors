@@ -7,6 +7,16 @@ import bastors.parse as parse
 Line = namedtuple("Line", ["indent", "code"])
 
 
+def expression(exp):
+    if isinstance(exp, parse.VariableExpression):
+        return "state.%s" % exp.var
+
+    if isinstance(exp, parse.ArithmeticExpression):
+        return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
+
+    return str(exp)
+
+
 def format_condition(conditions):
     """
     Turns a list of the namedtuple basic condition to a Rust condition.
@@ -28,7 +38,7 @@ def format_condition(conditions):
         else:
             relop = cond.operator
 
-        code += "(%s %s %s)" % (cond.left, relop, cond.right)
+        code += "(%s %s %s)" % (expression(cond.left), relop, expression(cond.right))
 
     return code
 
@@ -61,13 +71,16 @@ class Rustify(Visitor):
 
     def __init__(self):
         self._code = defaultdict(list)
-        self._variables = list()
+        self._variables = set()
         self._crates = set()
         self._indent = 1
         self._context = "main"
 
     def __in_function(self):
         return self._context != "main"
+
+    def __add_line(self, indent, code):
+        self._code[self._context].append(Line(indent, code))
 
     def __output_state(self, file):
         if len(self._variables) > 0:
@@ -123,6 +136,25 @@ class Rustify(Visitor):
             self._crates.add("std::process")
             self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
 
+    def visit_Input(self, node):
+        self._crates.add("std::io")
+
+        for var in node.variables:
+            self._variables.add(var.var)
+            self.__add_line(self._indent, "loop {")
+            self.__add_line(self._indent + 1, "let mut input = String::new();")
+
+            self.__add_line(
+                self._indent + 1, "io::stdin().read_line(&mut input).unwrap();"
+            )
+            self.__add_line(self._indent + 1, "match input.trim().parse::<i32>() {")
+            self.__add_line(
+                self._indent + 2, "Ok(i) => { %s = i; break }," % expression(var)
+            )
+            self.__add_line(self._indent + 2, 'Err(_) => println!("invalid number")')
+            self.__add_line(self._indent + 1, "}")
+            self.__add_line(self._indent, "}")
+
     def visit_Function(self, node):
         if len(self._variables) > 0:
             if self.__in_function():
@@ -134,29 +166,11 @@ class Rustify(Visitor):
         code = "f_%s(%s);" % (node.number, argument)
         self._code[self._context].append(Line(self._indent, code))
 
-    def __expression(self, exp):
-        if isinstance(exp, parse.VariableExpression):
-            return "state.%s" % exp.var
-
-        if isinstance(exp, parse.ArithmeticExpression):
-            return "%s %s %s" % (
-                self.__expression(exp.left),
-                exp.operator,
-                self.__expression(exp.right),
-            )
-
-        return str(exp)
-
     def visit_Let(self, let_node):
         """ Generate Rust from TinyBasic LET """
 
-        if let_node.lval.var not in self._variables:
-            self._variables.append(let_node.lval.var)
-
-        code = "%s = %s;" % (
-            self.__expression(let_node.lval),
-            self.__expression(let_node.rval),
-        )
+        self._variables.add(let_node.lval.var)
+        code = "%s = %s;" % (expression(let_node.lval), expression(let_node.rval),)
 
         self._code[self._context].append(Line(self._indent, code))
 
@@ -164,7 +178,7 @@ class Rustify(Visitor):
         """ Generate Rust from TinyBasic PRINT, by ways of the println! macro
         and the: println!()"{}", arguments), notation. """
         num = len(print_node.exp_list)
-        arguments = ",".join([self.__expression(exp) for exp in print_node.exp_list])
+        arguments = ",".join([expression(exp) for exp in print_node.exp_list])
         code = 'println!("%s", %s);' % ("{}" * num, arguments)
         self._code[self._context].append(Line(self._indent, code))
 

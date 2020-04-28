@@ -77,6 +77,7 @@ Loop = namedtuple("Loop", ["conditions", "statements"])
 Print = namedtuple("Print", ["exp_list"])
 Function = namedtuple("Function", ["number"])
 Return = namedtuple("Return", [])
+Input = namedtuple("Input", ["variables"])
 End = namedtuple("End", [])
 
 
@@ -100,7 +101,6 @@ class Parser:  # pylint: disable=too-few-public-methods
 
     def __init__(self, code):
         self._code = code
-        self._variables = []
         self._statements = defaultdict(list)
         self._context = "main"
         self._current_token = None
@@ -337,6 +337,21 @@ class Parser:  # pylint: disable=too-few-public-methods
         self.functions[number] = fn
         return fn
 
+    def __parse_input(self):
+        """INPUT var-list"""
+        variables = list()
+        while True:
+            token = self._current_token
+            self.__eat(lex.TokenEnum.VARIABLE)
+            variables.append(VariableExpression(token.value.lower()))
+
+            if self._current_token.type == lex.TokenEnum.COMMA:
+                self.__eat(lex.TokenEnum.COMMA)
+            else:
+                break
+
+        return Input(variables)
+
     def __parse_statement(self):
         token = self._current_token
         if token.type == lex.TokenEnum.EOF:
@@ -359,6 +374,8 @@ class Parser:  # pylint: disable=too-few-public-methods
             return self.__parse_gosub()
         if token.value == "RETURN":
             self._context = "main"
+        if token.value == "INPUT":
+            return self.__parse_input()
         if token.value == "END":
             return End()
 
