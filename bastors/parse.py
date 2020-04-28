@@ -52,8 +52,10 @@ def invert_conditions(conditions):
         for op1, op2 in table.items():
             if cond.operator == op1:
                 new_op = op2
+                break
             elif cond.operator == op2:
                 new_op = op1
+                break
 
         # Turn AND to OR and OR to AND
         new_type = cond.type

@@ -82,6 +82,7 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
         self._relation_ops = ["<", ">", "=", "<>", "<=", ">="]
         self._sym = ["(", ")", ","] + self._arithmetic_ops + self._relation_ops
         self._program = program
+        self._iter = iter(self._program)
         self._lexeme = ""
 
     def __get_symbol(self, line, col):
@@ -122,10 +123,11 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
             next_1 = self._program[idx + 1]
 
         # Make sure we do not add '<' if the actual token is '<='
-        sym_double = filter(lambda sym: len(sym) == 2, self._sym)
-        if next_1 is not None and self._lexeme + next_1 in sym_double:
-            # This will match a symbol next iteration
-            return False
+        if next_1 is not None and self._lexeme + next_1 in self._sym:
+            self._lexeme += next_1
+            tokens.append(self.__get_symbol(line, col))
+            next(self._iter, None)  # consume the next iteration
+            return True
 
         if self._lexeme in self._sym:
             tokens.append(self.__get_symbol(line, col))
@@ -159,7 +161,7 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
         col = 0
 
         is_comment = False
-        for idx, char in enumerate(self._program):
+        for idx, char in enumerate(self._iter):
             col = col + 1
             if char == "\n":
                 line = line + 1
