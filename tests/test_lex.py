@@ -70,9 +70,9 @@ class TestLex(unittest.TestCase):
             10 PRINT "HELLO WORLD"
             20 LET A=2
             30 LET B=A*3+5
-            30 IF A = 2 THEN GOTO 10
+            30 IF A=2 THEN GOTO 10
             40 INPUT B
-            50 IF B <= A THEN GOSUB 140
+            50 IF B<=A THEN GOSUB 140
             60 CLEAR
             70 LIST
             80 RUN
