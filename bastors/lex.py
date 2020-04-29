@@ -74,6 +74,33 @@ class LexError(Exception):
         self.col = col
 
 
+class LexIterator:
+    def __init__(self, iter):
+        self._iter = iter
+        self._char = None
+        self._peeked = False
+        self.line = 1
+        self.col = 0
+
+    def peek(self):
+        if not self._peeked:
+            self._char = next(self._iter, None)
+            self._peeked = True
+        return self._char
+
+    def next(self):
+        self._char = self.peek()
+
+        if self._char == "\n":
+            self.line += 1
+            self.col = 0
+        else:
+            self.col += 1
+
+        self._peeked = False
+        return self._char
+
+
 class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
     """ Perform lexical analysis of BASIC grammar above """
 
@@ -81,102 +108,98 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
         self._arithmetic_ops = ["+", "-", "*", "/"]
         self._relation_ops = ["<", ">", "=", "<>", "<=", ">="]
         self._sym = ["(", ")", ","] + self._arithmetic_ops + self._relation_ops
-        self._program = program
-        self._iter = iter(self._program)
+        self._iter = LexIterator(iter(program))
         self._lexeme = ""
+        self._tokens = list()
 
-    def __get_symbol(self, line, col):
+    def __append_token(self, type):
+        start = (self._iter.col + 1) - len(self._lexeme)
+        token = Token(self._lexeme, type, self._iter.line, start)
+        self._tokens.append(token)
+
+    def __append_symbol(self):
+        token_type = None
+
         if self._lexeme in self._arithmetic_ops:
-            return Token(self._lexeme, TokenEnum.ARITHMETIC_OP, line, col)
+            token_type = TokenEnum.ARITHMETIC_OP
         if self._lexeme in self._relation_ops:
-            return Token(self._lexeme, TokenEnum.RELATION_OP, line, col)
-
+            token_type = TokenEnum.RELATION_OP
         if self._lexeme == "(":
-            return Token(self._lexeme, TokenEnum.LPAREN, line, col)
+            token_type = TokenEnum.LPAREN
         if self._lexeme == ")":
-            return Token(self._lexeme, TokenEnum.RPAREN, line, col)
+            token_type = TokenEnum.RPAREN
         if self._lexeme == ",":
-            return Token(self._lexeme, TokenEnum.COMMA, line, col)
+            token_type = TokenEnum.COMMA
 
-        return None
+        if token_type is None:
+            raise LexError(
+                "unknown symbol [%s]" % self._lexeme, self._iter.line, self._iter.col
+            )
 
-    def __string_literal(self, tokens, line, col):
+        self.__append_token(token_type)
+
+    def __string_literal(self):
         # Check for complete string literal
         if len(self._lexeme) > 1 and self._lexeme.endswith('"'):
-            tokens.append(Token(self._lexeme, TokenEnum.STRING, line, col))
+            self.__append_token(TokenEnum.STRING)
             return True
         return False
 
-    def __comment(self, tokens, line, col):
+    def __comment(self):
         if len(self._lexeme) > 1 and self._lexeme[-1] == "\n":
-            tokens.append(Token(self._lexeme, TokenEnum.COMMENT, line, col))
+            self.__append_token(TokenEnum.COMMENT)
             return True
         if len(self._lexeme) == 0:
             return True
         return False
 
-    def __symbol(self, tokens, idx, line, col):
+    def __symbol(self):
         # We need to look-ahead to determine if a token is
         # the symbol '<' or the symbol '<='
-        next_1 = None
-        if idx + 1 < len(self._program):
-            next_1 = self._program[idx + 1]
+        next_1 = self._iter.peek()
 
         # Make sure we do not add '<' if the actual token is '<='
         if next_1 is not None and self._lexeme + next_1 in self._sym:
             self._lexeme += next_1
-            tokens.append(self.__get_symbol(line, col))
-            next(self._iter, None)  # consume the next iteration
+            self.__append_symbol()
+            self._iter.next()  # consume the next iteration
             return True
 
         if self._lexeme in self._sym:
-            tokens.append(self.__get_symbol(line, col))
+            self.__append_symbol()
             return True
 
         return False
 
-    def __complete_lexeme(self, idx):
+    def __complete_lexeme(self):
         # Look-ahead to determine if next char is a self._lexeme separator
-        next_1 = next_2 = None
-        if idx + 1 < len(self._program):
-            next_1 = self._program[idx + 1]
-        if idx + 2 < len(self._program):
-            next_2 = self._program[idx + 1 : idx + 2]
+        next_1 = self._iter.peek()
         # Is this the end of a self._lexeme?
         # It is if is next char is whitespace or ...
         # ... if next char is a reserved symbol or ...
         # ... if the next two chars is a reserved symbol or ...
         # ... there is no next char
-        return (
-            next_1 is None
-            or next_1 in string.whitespace
-            or next_1 in self._sym
-            or (next_2 is not None and next_2 in self._sym)
-        )
+        return next_1 is None or next_1 in string.whitespace or next_1 in self._sym
 
     def get_tokens(self):
         """ Return a list of tokens in the given program """
-        tokens = []
-        line = 1
-        col = 0
-
         is_comment = False
-        for idx, char in enumerate(self._iter):
-            col = col + 1
-            if char == "\n":
-                line = line + 1
-                col = 0
+        while True:
+            char = self._iter.next()
+            if char is None:
+                break
 
             if is_comment:
                 self._lexeme += char
-                if self.__comment(tokens, line, col):
+                if self.__comment():
                     is_comment = False
                     self._lexeme = ""
                 continue
 
+            # Are we parsing a string?
             if char == '"' or self._lexeme.startswith('"'):
                 self._lexeme += char
-                if self.__string_literal(tokens, line, col):
+                if self.__string_literal():
                     self._lexeme = ""
                 continue
 
@@ -185,17 +208,15 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
                 self._lexeme += char
 
             # Symbols does not need separators around them to be valid
-            if self.__symbol(tokens, idx, line, col):
+            if self.__symbol():
                 self._lexeme = ""
                 continue
 
             # If next char is a self._lexeme separator then we should check that we
             # have a known token here.
-            if self.__complete_lexeme(idx):
-                start = (col + 1) - len(self._lexeme)
+            if self.__complete_lexeme():
                 if self._lexeme in STATEMENTS:
-                    token = Token(self._lexeme, TokenEnum.STATEMENT, line, start)
-                    tokens.append(token)
+                    self.__append_token(TokenEnum.STATEMENT)
                     self._lexeme = ""
                     continue
 
@@ -206,17 +227,23 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
 
                 length = len(self._lexeme)
                 if length == 1 and self._lexeme.isalpha() and self._lexeme.isupper():
-                    token = Token(self._lexeme, TokenEnum.VARIABLE, line, start)
-                    tokens.append(token)
+                    self.__append_token(TokenEnum.VARIABLE)
+                    self._lexeme = ""
+                    continue
 
-                elif self._lexeme.isnumeric():
-                    tokens.append(Token(self._lexeme, TokenEnum.NUMBER, line, start))
+                if self._lexeme.isnumeric():
+                    self.__append_token(TokenEnum.NUMBER)
+                    self._lexeme = ""
+                    continue
 
-                elif len(self._lexeme) > 1:
-                    raise LexError("unknown token: [%s]" % self._lexeme, line, start)
-
+                if len(self._lexeme) > 1:
+                    raise LexError(
+                        "unknown token: [%s]" % self._lexeme,
+                        self._iter.line,
+                        (self._iter.col + 1) - len(self._lexeme),
+                    )
                 self._lexeme = ""
-        return tokens
+        return self._tokens
 
 
 if __name__ == "__main__":
