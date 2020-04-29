@@ -240,36 +240,36 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         return If(conditions, self.__parse_statement())
 
-    def __find_idx(self, number):
-        for idx, (label, _) in enumerate(self._statements[self._context]):
-            if label is not None and label == number:
+    def __find_idx(self, needle):
+        for idx, (haystack, _) in enumerate(self._statements[self._context]):
+            if haystack is not None and haystack == needle:
                 return idx
         return None
 
-    def __collect_statements(self, number):
+    def __collect_statements(self, label):
         statements = []
-        idx = self.__find_idx(number)
+        idx = self.__find_idx(label)
         if idx is not None:
             statements = self._statements[self._context][idx:]
             del self._statements[self._context][idx:]
             return (True, statements)
         #
-        # If we get here, we have not seen the number refered to in the GOTO
+        # If we get here, we have not seen the label refered to in the GOTO
         # statement yet, we expect to find it going forward.
         #
         while True:
-            # First check if following statement line number matches
+            # First check if following statement label matches
             if self._current_token.type == lex.TokenEnum.NUMBER:
-                if self._current_token.value == str(number):
+                if self._current_token.value == str(label):
                     break
             # Then parse next statement and add it to the future then-clause
             (_, statement) = self.__process_line()
             if statement is None:
                 line = self._current_token.line
                 col = self._current_token.col
-                raise ParseError("no GOTO/GOSUB expression (%s)" % number, line, col)
+                raise ParseError("no GOTO/GOSUB label (%s)" % label, line, col)
 
-            statements.append((number, statement))
+            statements.append((label, statement))
         return (False, statements)
 
     def __parse_goto(self, conditions):
@@ -278,13 +278,13 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         We can currently handle three (two) kinds of GOTO situations.
 
-        1) The GOTO number has been seen:
+        1) The GOTO label has been seen:
              10 PRINT "HELLO"
              20 GOTO 10
              30 END
            We turn this into an unconditional loop.
 
-        2) The GOTO number has been seen and the previous statement is an
+        2) The GOTO label has been seen and the previous statement is an
            IF statement:
             10 LET B=0
             20 PRINT B
@@ -293,7 +293,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             50 END
            We turn this into a conditional loop.
 
-        3) The GOTO number is in the future and the previous statement is an
+        3) The GOTO label is in the future and the previous statement is an
            IF statement:
              10 LET N=1
              20 IF N <> 1 THEN GOTO 70
@@ -306,7 +306,7 @@ class Parser:  # pylint: disable=too-few-public-methods
         THEN block.
         """
         try:
-            number = int(self._current_token.value)
+            label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
         except ValueError:
             line = self._current_token.line
@@ -315,7 +315,7 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         # If this is a number we have already seen, then this is a loop back
         # to that statement. Otherwise we see this as an if/else.
-        seen, statements = self.__collect_statements(number)
+        seen, statements = self.__collect_statements(label)
         if seen:
             return Loop(conditions, statements)
         else:
@@ -323,20 +323,20 @@ class Parser:  # pylint: disable=too-few-public-methods
 
     def __parse_gosub(self):
         """
-        GOSUB expression
+        GOSUB number
 
         We turn a GOSUB statement into a function call.
         """
         try:
-            number = int(self._current_token.value)
+            label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
         except ValueError:
             line = self._current_token.line
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        fn = Function(number)
-        self.functions[number] = fn
+        fn = Function(label)
+        self.functions[label] = fn
         return fn
 
     def __parse_input(self):
@@ -392,16 +392,16 @@ class Parser:  # pylint: disable=too-few-public-methods
             self.__eat(lex.TokenEnum.COMMENT)
 
         if self._current_token.type == lex.TokenEnum.NUMBER:
-            number = int(self._current_token.value)
+            label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
         else:
-            number = None
+            label = None
 
-        return (number, self.__parse_statement())
+        return (label, self.__parse_statement())
 
     def __parse_program(self):
         while True:
-            (number, statement) = self.__process_line()
+            (label, statement) = self.__process_line()
             if statement is None:
                 break
 
@@ -411,14 +411,14 @@ class Parser:  # pylint: disable=too-few-public-methods
             if isinstance(statement, Return):
                 continue
 
-            # If the line number matches a GOSUB target (stored in the
+            # If the label matches a GOSUB target (stored in the
             # functions list) we are now in that functions context and store
             # the statements there.
-            if number is not None:
-                if int(number) in self.functions:
-                    self._context = number
+            if label is not None:
+                if int(label) in self.functions:
+                    self._context = label
 
-            self._statements[self._context].append((number, statement))
+            self._statements[self._context].append((label, statement))
 
         return Program(self._statements)
 
