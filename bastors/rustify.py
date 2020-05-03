@@ -137,7 +137,7 @@ class Rustify(Visitor):
             self.__add_line(self._indent + 1, "}")
             self.__add_line(self._indent, "}")
 
-    def visit_Function(self, node):
+    def visit_Gosub(self, node):
         if len(self._variables) > 0:
             if self.__in_function():
                 argument = "state"

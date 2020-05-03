@@ -77,7 +77,7 @@ Let = namedtuple("Let", ["lval", "rval"])
 If = namedtuple("If", ["conditions", "then"])
 Loop = namedtuple("Loop", ["conditions", "statements"])
 Print = namedtuple("Print", ["exp_list"])
-Function = namedtuple("Function", ["number"])
+Gosub = namedtuple("Gosub", ["label"])
 Return = namedtuple("Return", [])
 Input = namedtuple("Input", ["variables"])
 End = namedtuple("End", [])
@@ -335,7 +335,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        fn = Function(label)
+        fn = Gosub(label)
         self.functions[label] = fn
         return fn
 
