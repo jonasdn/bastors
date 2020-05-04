@@ -361,9 +361,7 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         self.__eat(lex.TokenEnum.STATEMENT)
         if token.value == "RETURN":
-            self._context = "main"
             return Return()
-
         if token.value == "LET":
             return self.__parse_let()
         if token.value == "PRINT":
@@ -374,8 +372,6 @@ class Parser:  # pylint: disable=too-few-public-methods
             return self.__parse_goto(None)
         if token.value == "GOSUB":
             return self.__parse_gosub()
-        if token.value == "RETURN":
-            self._context = "main"
         if token.value == "INPUT":
             return self.__parse_input()
         if token.value == "END":
@@ -404,12 +400,6 @@ class Parser:  # pylint: disable=too-few-public-methods
             (label, statement) = self.__process_line()
             if statement is None:
                 break
-
-            # We eat the return statement and carry on, this is part of an
-            # assumption that gosub always jumps forward, never backwards.
-            # This is probably very foolish.
-            if isinstance(statement, Return):
-                continue
 
             # If the label matches a GOSUB target (stored in the
             # functions list) we are now in that functions context and store

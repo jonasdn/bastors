@@ -39,7 +39,7 @@ def format_condition(conditions):
         else:
             relop = cond.operator
 
-        code += "(%s %s %s)" % (expression(cond.left), relop, expression(cond.right))
+        code += "%s %s %s" % (expression(cond.left), relop, expression(cond.right))
 
     return code
 
@@ -147,6 +147,9 @@ class Rustify(Visitor):
             argument = str()
         code = "f_%s(%s);" % (node.number, argument)
         self._code[self._context].append(Line(self._indent, code))
+
+    def visit_Return(self, node):
+        self.__add_line(self._indent, "return;")
 
     def visit_Let(self, let_node):
         """ Generate Rust from TinyBasic LET """
