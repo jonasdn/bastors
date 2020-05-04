@@ -75,7 +75,7 @@ def invert_conditions(conditions):
 Program = namedtuple("Program", "statements")
 Let = namedtuple("Let", ["lval", "rval"])
 If = namedtuple("If", ["conditions", "then"])
-Loop = namedtuple("Loop", ["conditions", "statements"])
+Goto = namedtuple("Goto", ["label", "conditional"])
 Print = namedtuple("Print", ["exp_list"])
 Gosub = namedtuple("Gosub", ["label"])
 Return = namedtuple("Return", [])
@@ -232,79 +232,17 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         if self._current_token.value == "GOTO":
             self.__eat(lex.TokenEnum.STATEMENT)
-            return self.__parse_goto(conditions)
+            goto = self.__parse_goto(True)
+            return If(conditions, [(None, goto)])
 
         if self._current_token.value == "IF":
             self.__eat(lex.TokenEnum.STATEMENT)
             return self.__parse_if(conditions)
 
-        return If(conditions, self.__parse_statement())
+        return If(conditions, [(None, self.__parse_statement())])
 
-    def __find_idx(self, needle):
-        for idx, (haystack, _) in enumerate(self._statements[self._context]):
-            if haystack is not None and haystack == needle:
-                return idx
-        return None
-
-    def __collect_statements(self, label):
-        statements = []
-        idx = self.__find_idx(label)
-        if idx is not None:
-            statements = self._statements[self._context][idx:]
-            del self._statements[self._context][idx:]
-            return (True, statements)
-        #
-        # If we get here, we have not seen the label refered to in the GOTO
-        # statement yet, we expect to find it going forward.
-        #
-        while True:
-            # First check if following statement label matches
-            if self._current_token.type == lex.TokenEnum.NUMBER:
-                if self._current_token.value == str(label):
-                    break
-            # Then parse next statement and add it to the future then-clause
-            (_, statement) = self.__process_line()
-            if statement is None:
-                line = self._current_token.line
-                col = self._current_token.col
-                raise ParseError("no GOTO/GOSUB label (%s)" % label, line, col)
-
-            statements.append((label, statement))
-        return (False, statements)
-
-    def __parse_goto(self, conditions):
-        """
-        GOTO expression
-
-        We can currently handle three (two) kinds of GOTO situations.
-
-        1) The GOTO label has been seen:
-             10 PRINT "HELLO"
-             20 GOTO 10
-             30 END
-           We turn this into an unconditional loop.
-
-        2) The GOTO label has been seen and the previous statement is an
-           IF statement:
-            10 LET B=0
-            20 PRINT B
-            30 LET B=B+1
-            40 IF B<10 THEN GOTO 20
-            50 END
-           We turn this into a conditional loop.
-
-        3) The GOTO label is in the future and the previous statement is an
-           IF statement:
-             10 LET N=1
-             20 IF N <> 1 THEN GOTO 70
-             30 PRINT "one"
-             40 PRINT "two"
-             50 LET N=N+2
-             60 PRINT N
-             70 END
-        We turn this in to an if-statement with many statements in the
-        THEN block.
-        """
+    def __parse_goto(self, conditional):
+        """GOTO number"""
         try:
             label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
@@ -313,13 +251,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        # If this is a number we have already seen, then this is a loop back
-        # to that statement. Otherwise we see this as an if/else.
-        seen, statements = self.__collect_statements(label)
-        if seen:
-            return Loop(conditions, statements)
-        else:
-            return If(invert_conditions(conditions), statements)
+        return Goto(label, conditional)
 
     def __parse_gosub(self):
         """

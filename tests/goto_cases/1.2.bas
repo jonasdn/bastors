@@ -1,0 +1,8 @@
+REM 1.2 make it loop
+10 LET A=2
+20 LET B=B+2+A
+30 LET C=A*2+B
+40 LET A=A+1
+50 IF C < 50 THEN GOTO 30
+60 PRINT A, B, C
+70 END

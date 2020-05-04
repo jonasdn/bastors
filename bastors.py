@@ -3,6 +3,7 @@ import argparse
 import sys
 from bastors.lex import LexError
 from bastors.parse import Parser, ParseError
+from bastors.goto_elimination import GotoEliminationError, eliminate_goto
 from bastors.rustify import Rustify
 
 if __name__ == "__main__":
@@ -19,12 +20,15 @@ if __name__ == "__main__":
         sys.exit()
 
     try:
-        tree = Parser(program).parse()
+        tree = eliminate_goto(Parser(program).parse())
     except ParseError as err:
         print("parse error: %s" % err)
         sys.exit(1)
     except LexError as err:
         print("syntax error: %s [%d:%d]" % (err, err.line, err.col))
+        sys.exit(1)
+    except GotoEliminationError as err:
+        print(err)
         sys.exit(1)
 
     out = open(args.output, "w") if args.output else sys.stdout
