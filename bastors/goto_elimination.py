@@ -18,7 +18,7 @@ import bastors.parse as parse
 # [2, 0, 0].
 #
 GotoLabelPair = namedtuple("GotoLabelPair", ["goto_path", "label_path"])
-Loop = namedtuple("Loop", ["conditions", "statements"])
+Loop = namedtuple("Loop", ["label", "conditions", "statements"])
 
 
 class GotoEliminationError(Exception):
@@ -86,9 +86,9 @@ def eliminate_goto(program):
 
                 # No matches among supported cases
                 block = get_block(statements[context], pair.goto_path)
-                _, if_stmt = block[pair.goto_path[-1]]
+                if_stmt = block[pair.goto_path[-1]]
                 raise GotoEliminationError(
-                    "Unsupported GOTO case (GOTO %s)" % if_stmt.then[0][1].label
+                    "Unsupported GOTO case (GOTO %s)" % if_stmt.then[0].target_label
                 )
 
         if found is False:
@@ -150,7 +150,7 @@ def get_block(statements, path):
         if i == len(path) - 1:
             return statements
 
-        _, statement = statements[index]
+        statement = statements[index]
         if isinstance(statement, parse.If):
             return get_block(statement.then, path[1:])
 
@@ -164,7 +164,7 @@ def algo_1_1_same_level_same_block__before(pair, statements):
     statement and remove the goto statement and the label.
     """
     block = get_block(statements, pair.goto_path)
-    (goto_label, goto_stmt) = block[pair.goto_path[-1]]
+    goto_stmt = block[pair.goto_path[-1]]
     #
     # The statements between the goto and the label can be represented as:
     #   block[pair.goto_path[-1] + 1 : pair.label_path[-1]]
@@ -172,8 +172,10 @@ def algo_1_1_same_level_same_block__before(pair, statements):
     # label index.
     #
     between = slice(pair.goto_path[-1] + 1, pair.label_path[-1])
-    if_stmt = parse.If(parse.invert_conditions(goto_stmt.conditions), block[between])
-    block[pair.goto_path[-1]] = (goto_label, if_stmt)
+    if_stmt = parse.If(
+        goto_stmt.label, parse.invert_conditions(goto_stmt.conditions), block[between]
+    )
+    block[pair.goto_path[-1]] = if_stmt
     del block[between]
 
 
@@ -185,7 +187,7 @@ def algo_1_2_same_level_same_block__after(pair, statements):
     the goto statement.
     """
     block = get_block(statements, pair.goto_path)
-    (_, goto_stmt) = block[pair.goto_path[-1]]
+    goto_stmt = block[pair.goto_path[-1]]
     #
     # This slice gets us all statements between the label and the goto
     # including the label.
@@ -195,8 +197,8 @@ def algo_1_2_same_level_same_block__after(pair, statements):
     # Insert a loop statement where the label was and create a loop based
     # on the goto statement condition.
     #
-    loop_stmt = Loop(goto_stmt.conditions, block[between])
-    block[pair.label_path[-1]] = (block[pair.label_path[-1]][0], loop_stmt)
+    loop_stmt = Loop(None, goto_stmt.conditions, block[between])
+    block[pair.label_path[-1]] = loop_stmt
     #
     # Remove statements between the label statements and the goto statement
     # including the goto statement. They being replaced by the loop statement
@@ -222,8 +224,8 @@ def convert_to_conditional(goto, label, index, statements):
     conditional GOTOs.
     """
     cond = parse.Condition(1, "=", 1, parse.ConditionEnum.INITIAL)
-    replacement = parse.If([cond], [(None, goto)])
-    statements[index] = label, replacement
+    replacement = parse.If(label, [cond], [goto])
+    statements[index] = replacement
 
 
 def find_goto(statements, path):
@@ -239,12 +241,12 @@ def find_goto(statements, path):
     Gives a path of [1, 0], the initial 1 leads us to the IF statement and
     the second 0 leads us to the GOTO in the THEN block.
     """
-    for index, (stmt_label, statement) in enumerate(statements):
+    for index, statement in enumerate(statements):
         if isinstance(statement, parse.Goto):
             if len(statements) != 1:
-                convert_to_conditional(statement, stmt_label, index, statements)
+                convert_to_conditional(statement, statement.label, index, statements)
                 path.insert(0, index)
-            return statement.label
+            return statement.target_label
 
         if isinstance(statement, Loop):
             label = find_goto(statement.statements, path)
@@ -262,8 +264,8 @@ def find_goto(statements, path):
 
 def find_label(target, statements, path):
     """ Find the path to the label target of a GOTO statement """
-    for index, (label, statement) in enumerate(statements):
-        if target == label:
+    for index, statement in enumerate(statements):
+        if target == statement.label:
             path.insert(0, index)
             return True
 

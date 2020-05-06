@@ -73,15 +73,14 @@ def invert_conditions(conditions):
 # These are the statements that we currently construct from TinyBasic
 #
 Program = namedtuple("Program", "statements")
-Let = namedtuple("Let", ["lval", "rval"])
-If = namedtuple("If", ["conditions", "then"])
-Goto = namedtuple("Goto", ["label", "conditional"])
-Print = namedtuple("Print", ["exp_list"])
-Gosub = namedtuple("Gosub", ["label"])
-Return = namedtuple("Return", [])
-Input = namedtuple("Input", ["variables"])
-End = namedtuple("End", [])
-
+Let = namedtuple("Let", ["label", "lval", "rval"])
+If = namedtuple("If", ["label", "conditions", "then"])
+Goto = namedtuple("Goto", ["label", "target_label", "conditional"])
+Print = namedtuple("Print", ["label", "exp_list"])
+Gosub = namedtuple("Gosub", ["label", "target_label"])
+Return = namedtuple("Return", ["label"])
+Input = namedtuple("Input", ["label", "variables"])
+End = namedtuple("End", ["label"])
 
 ArithmeticExpression = namedtuple("ArithmeticExpression", ["left", "operator", "right"])
 VariableExpression = namedtuple("VariableExpression", ["var"])
@@ -171,7 +170,7 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         return node
 
-    def __parse_let(self):
+    def __parse_let(self, label):
         """
         LET var = expression
         """
@@ -185,9 +184,9 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         rval = self.__parse_exp()
 
-        return Let(lval, rval)
+        return Let(label, lval, rval)
 
-    def __parse_print(self):
+    def __parse_print(self, label):
         """
         PRINT expr-list
         expr-list ::= (string|expression) (, (string|expression) )*
@@ -206,9 +205,9 @@ class Parser:  # pylint: disable=too-few-public-methods
             else:
                 break
 
-        return Print(exp_list)
+        return Print(label, exp_list)
 
-    def __parse_if(self, conditions):
+    def __parse_if(self, conditions, label):
         """
         IF expression operator expression THEN statement
         operator ::= < (>|=|ε) | > (<|=|ε) | =
@@ -232,46 +231,46 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         if self._current_token.value == "GOTO":
             self.__eat(lex.TokenEnum.STATEMENT)
-            goto = self.__parse_goto(True)
-            return If(conditions, [(None, goto)])
+            goto = self.__parse_goto(True, label)
+            return If(label, conditions, [goto])
 
         if self._current_token.value == "IF":
             self.__eat(lex.TokenEnum.STATEMENT)
-            return self.__parse_if(conditions)
+            return self.__parse_if(conditions, None)
 
-        return If(conditions, [(None, self.__parse_statement())])
+        return If(label, conditions, [self.__parse_statement(None)])
 
-    def __parse_goto(self, conditional):
+    def __parse_goto(self, conditional, label):
         """GOTO number"""
         try:
-            label = int(self._current_token.value)
+            target_label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
         except ValueError:
             line = self._current_token.line
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        return Goto(label, conditional)
+        return Goto(label, target_label, conditional)
 
-    def __parse_gosub(self):
+    def __parse_gosub(self, label):
         """
         GOSUB number
 
         We turn a GOSUB statement into a function call.
         """
         try:
-            label = int(self._current_token.value)
+            target_label = int(self._current_token.value)
             self.__eat(lex.TokenEnum.NUMBER)
         except ValueError:
             line = self._current_token.line
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        fn = Gosub(label)
+        fn = Gosub(label, target_label)
         self.functions[label] = fn
         return fn
 
-    def __parse_input(self):
+    def __parse_input(self, label):
         """INPUT var-list"""
         variables = list()
         while True:
@@ -284,30 +283,30 @@ class Parser:  # pylint: disable=too-few-public-methods
             else:
                 break
 
-        return Input(variables)
+        return Input(label, variables)
 
-    def __parse_statement(self):
+    def __parse_statement(self, label):
         token = self._current_token
         if token.type == lex.TokenEnum.EOF:
             return None
 
         self.__eat(lex.TokenEnum.STATEMENT)
         if token.value == "RETURN":
-            return Return()
+            return Return(label)
         if token.value == "LET":
-            return self.__parse_let()
+            return self.__parse_let(label)
         if token.value == "PRINT":
-            return self.__parse_print()
+            return self.__parse_print(label)
         if token.value == "IF":
-            return self.__parse_if(None)
+            return self.__parse_if(None, label)
         if token.value == "GOTO":
-            return self.__parse_goto(None)
+            return self.__parse_goto(False, label)
         if token.value == "GOSUB":
-            return self.__parse_gosub()
+            return self.__parse_gosub(label)
         if token.value == "INPUT":
-            return self.__parse_input()
+            return self.__parse_input(label)
         if token.value == "END":
-            return End()
+            return End(label)
 
         raise ParseError(
             "Unknown statement: %s" % token.value,
@@ -325,22 +324,22 @@ class Parser:  # pylint: disable=too-few-public-methods
         else:
             label = None
 
-        return (label, self.__parse_statement())
+        return self.__parse_statement(label)
 
     def __parse_program(self):
         while True:
-            (label, statement) = self.__process_line()
+            statement = self.__process_line()
             if statement is None:
                 break
 
             # If the label matches a GOSUB target (stored in the
             # functions list) we are now in that functions context and store
             # the statements there.
-            if label is not None:
-                if int(label) in self.functions:
-                    self._context = label
+            if statement.label is not None:
+                if int(statement.label) in self.functions:
+                    self._context = statement.label
 
-            self._statements[self._context].append((label, statement))
+            self._statements[self._context].append(statement)
 
         return Program(self._statements)
 

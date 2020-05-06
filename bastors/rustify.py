@@ -109,8 +109,7 @@ class Rustify(Visitor):
             generate Rust"""
         for context in node.statements.keys():
             self._context = str(context)
-            for line in node.statements[context]:
-                _, statement = line
+            for statement in node.statements[context]:
                 self.visit(statement)
 
     def visit_End(self, node):
@@ -185,7 +184,7 @@ class Rustify(Visitor):
         """
         self._code[self._context].append(Line(self._indent, "loop {"))
         self._indent = self._indent + 1
-        for (_, statement) in loop_node.statements:
+        for statement in loop_node.statements:
             self.visit(statement)
 
         if loop_node.conditions is not None:
@@ -205,7 +204,7 @@ class Rustify(Visitor):
         self._code[self._context].append(Line(self._indent, code))
 
         self._indent = self._indent + 1
-        for _, statement in if_node.then:
+        for statement in if_node.then:
             self.visit(statement)
         self._indent = self._indent - 1
 
