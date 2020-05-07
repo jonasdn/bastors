@@ -75,7 +75,7 @@ def invert_conditions(conditions):
 Program = namedtuple("Program", "statements")
 Let = namedtuple("Let", ["label", "lval", "rval"])
 If = namedtuple("If", ["label", "conditions", "then"])
-Goto = namedtuple("Goto", ["label", "target_label", "conditional"])
+Goto = namedtuple("Goto", ["label", "target_label"])
 Print = namedtuple("Print", ["label", "exp_list"])
 Gosub = namedtuple("Gosub", ["label", "target_label"])
 Return = namedtuple("Return", ["label"])
@@ -231,7 +231,7 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         if self._current_token.value == "GOTO":
             self.__eat(lex.TokenEnum.STATEMENT)
-            goto = self.__parse_goto(True, label)
+            goto = self.__parse_goto(label)
             return If(label, conditions, [goto])
 
         if self._current_token.value == "IF":
@@ -240,7 +240,7 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         return If(label, conditions, [self.__parse_statement(None)])
 
-    def __parse_goto(self, conditional, label):
+    def __parse_goto(self, label):
         """GOTO number"""
         try:
             target_label = int(self._current_token.value)
@@ -250,7 +250,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             col = self._current_token.col
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
-        return Goto(label, target_label, conditional)
+        return Goto(label, target_label)
 
     def __parse_gosub(self, label):
         """
@@ -300,7 +300,7 @@ class Parser:  # pylint: disable=too-few-public-methods
         if token.value == "IF":
             return self.__parse_if(None, label)
         if token.value == "GOTO":
-            return self.__parse_goto(False, label)
+            return self.__parse_goto(label)
         if token.value == "GOSUB":
             return self.__parse_gosub(label)
         if token.value == "INPUT":
