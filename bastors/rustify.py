@@ -113,9 +113,8 @@ class Rustify(Visitor):
                 self.visit(statement)
 
     def visit_End(self, node):
-        if self._context != "main":
-            self._crates.add("std::process")
-            self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
+        self._crates.add("std::process")
+        self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
 
     def visit_Input(self, node):
         self._crates.add("std::io")
