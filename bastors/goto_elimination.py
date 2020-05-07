@@ -121,6 +121,17 @@ def eliminate_goto(program):
     return program
 
 
+def classify_goto(program):
+    """
+    Used for test: return the classification for first goto/label pair
+    found, or None if none found.
+    """
+    for context in program.statements.keys():
+        pair = find_pair(program.statements[context])
+        if pair is not None:
+            return classify_pair(pair)
+
+
 def classify_pair(pair):
     """
     Given a GOTO and label pair, classify it into one of 9 cases, see below
