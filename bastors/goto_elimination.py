@@ -83,6 +83,30 @@ def eliminate_goto(program):
                 if case == "1.2":
                     algo_1_2_same_level_same_block__after(pair, statements[context])
                     break
+                if case == "2.1":
+                    raise GotoEliminationError(
+                        "case %s is not implemented: GOTO occurs in some "
+                        "parent block (> 1) of the block where the label "
+                        "is contained in and goto occurs before the label." % case
+                    )
+                if case == "2.2":
+                    raise GotoEliminationError(
+                        "case %s is not implemented: GOTO occurs in some "
+                        "parent block (> 1) of the block where the label "
+                        "is contained in and label occurs before the goto." % case
+                    )
+                if case == "3.1":
+                    raise GotoEliminationError(
+                        "case %s not implemented: Label occurs in some "
+                        "parent block (> 1) of the block where the goto is "
+                        "contained in and goto occurs before the label." % case
+                    )
+                if case == "3.2":
+                    raise GotoEliminationError(
+                        "case %s not implemented: Label occurs in some "
+                        "parent block (> 1) of the block where the goto is "
+                        "contained in and label occurs before the label." % case
+                    )
 
                 # No matches among supported cases
                 block = get_block(statements[context], pair.goto_path)
@@ -105,8 +129,8 @@ def classify_pair(pair):
     This algo was found at:
         https://dzone.com/articles/goto-elimination-algorithm
     """
-    length_goto = len(pair.goto_path)
-    length_label = len(pair.label_path)
+    length_goto_path = len(pair.goto_path)
+    length_label_path = len(pair.label_path)
     #
     # First we determinate if the goto occurs before or after the label
     #
@@ -119,9 +143,41 @@ def classify_pair(pair):
     #
     # This means the path leading up to the last index needs to be identical.
     #
-    if length_goto == length_label:
-        if length_goto == 1 or pair.goto_path[:-1] == pair.label_path[:-1]:
+    if length_goto_path == length_label_path:
+        if length_goto_path == 1 or pair.goto_path[:-1] == pair.label_path[:-1]:
             return "1.1" if before else "1.2"
+    #
+    # Case 2.1 / 2.2:
+    #  Goto occurs in some parent block of where the label is contained in.
+    #
+    #  Example:
+    # 10   LET A=1
+    # 20   LET B=2
+    # 30   IF B>1 THEN GOTO 50
+    # 40   IF A>0 THEN
+    # 50     PRINT B
+    # 60     PRINT "HEJ"
+    # 70   END
+    #
+    #   Note that this can't happen in a simple TinyBasic program, it needs
+    #   to have been transformed in some way by goto elimnation.
+    #
+    #   This means that the entire goto path needs to be in the label path.
+    #   We will check this by slicing the subset of the label path that is
+    #   the same length as the goto path.
+    if length_label_path - length_goto_path >= 1:  # potential case of 2.x
+        label_sub_path = pair.label_path[:length_goto_path]
+        if label_sub_path[:-1] == pair.goto_path[:-1]:
+            return "2.1" if before else "2.2"
+    #
+    # Case 3.1 / 3.2:
+    #  This is the "inverse" of the 2.1 / 2.2 case, but here we are checking
+    #  for if the label occurs in a parent block.
+    #
+    if length_goto_path - length_label_path >= 1:  # potential case of 3.x
+        goto_sub_path = pair.goto_path[:length_label_path]
+        if goto_sub_path[:-1] == pair.label_path[:-1]:
+            return "3.1" if before else "3.2"
 
     return None
 
