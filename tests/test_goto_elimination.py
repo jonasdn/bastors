@@ -3,8 +3,8 @@ import glob
 import os
 import subprocess
 import sys
-from bastors.goto_elimination import eliminate_goto
-from bastors.parse import ParseError, Parser
+import bastors.parse as parse
+from bastors.goto_elimination import eliminate_goto, classify_goto
 from bastors.rustify import Rustify
 
 
@@ -17,9 +17,9 @@ class TestGotoELim(unittest.TestCase):
             self.assertFalse(True)
 
         try:
-            tree = Parser(content).parse()
+            tree = parse.Parser(content).parse()
             file.close()
-        except ParseError:
+        except parse.ParseError:
             self.assertFalse(True)
 
         rs = "%s.rs" % program.replace(".", "_")
@@ -77,8 +77,71 @@ class TestGotoELim(unittest.TestCase):
         """
         self.__assert_output("1.2.bas", b"24450\n")
 
+    def test_3_1(self):
+        """
+        Label occurs in some parent block (> 1) of the block where the goto is
+        contained in and goto occurs before the label.
+
+        This cannot be constructed by a TinyBasic program since our TinyBasic
+        does not allow multi-statement then. It can occur as part of goto
+        elimination though. So we construct an example here.
+        """
+        statements = dict()
+        statements["main"] = [
+            parse.Let(None, parse.VariableExpression("A"), 1),
+            parse.Let(None, parse.VariableExpression("B"), 2),
+            parse.If(
+                None,
+                [
+                    parse.Condition(
+                        parse.VariableExpression("A"),
+                        ">",
+                        0,
+                        parse.ConditionEnum.INITIAL,
+                    )
+                ],
+                [
+                    parse.Print(None, parse.VariableExpression("A")),
+                    parse.Let(None, parse.VariableExpression("B"), 0),
+                    parse.If(
+                        None,
+                        [
+                            parse.Condition(
+                                parse.VariableExpression("B"),
+                                "=",
+                                0,
+                                parse.ConditionEnum.INITIAL,
+                            )
+                        ],
+                        [
+                            parse.Let(None, parse.VariableExpression("B"), 5),
+                            parse.Print(None, parse.VariableExpression("A")),
+                            parse.Goto(None, 20),
+                            parse.Print(None, "No droids here."),
+                        ],
+                    ),
+                ],
+            ),
+            parse.Let(20, parse.VariableExpression("A"), 7),
+            parse.Print(None, parse.VariableExpression("B")),
+            parse.Print(None, parse.VariableExpression("A")),
+        ]
+        program = parse.Program(statements)
+        self.assertEqual(classify_goto(program), "3.1")
+
+        out = open("3_1.rs", "w")
+        rust = Rustify()
+        rust.visit(eliminate_goto(program))
+        rust.output(out)
+        out.close()
+
+        process = subprocess.call(["rustc", "3_1.rs"], subprocess.PIPE)
+        process = subprocess.Popen(["./3_1"], stdout=subprocess.PIPE)
+        (program_output, _) = process.communicate()
+        self.assertEqual(b"157\n", program_output)
+
     def tearDown(self):
-        globs = [u"1_1_bas*", u"1_1_bare_bas*", u"1_2_bas*"]
+        globs = [u"1_1_bas*", u"1_1_bare_bas*", u"1_2_bas*", u"3_1*"]
         for g in globs:
             for file in glob.glob(g):
                 os.unlink(os.path.abspath(file))
