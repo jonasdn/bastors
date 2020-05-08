@@ -88,43 +88,54 @@ class TestGotoELim(unittest.TestCase):
         """
         statements = dict()
         statements["main"] = [
-            parse.Let(None, parse.VariableExpression("A"), 1),
-            parse.Let(None, parse.VariableExpression("B"), 2),
+            parse.Let(None, parse.VariableExpression("a"), 1),
+            parse.Let(None, parse.VariableExpression("b"), 2),
             parse.If(
                 None,
                 [
                     parse.Condition(
-                        parse.VariableExpression("A"),
+                        parse.VariableExpression("a"),
                         ">",
                         0,
                         parse.ConditionEnum.INITIAL,
                     )
                 ],
                 [
-                    parse.Print(None, parse.VariableExpression("A")),
-                    parse.Let(None, parse.VariableExpression("B"), 0),
+                    parse.Print(None, [parse.VariableExpression("a")]),
+                    parse.Let(None, parse.VariableExpression("b"), 0),
                     parse.If(
                         None,
                         [
                             parse.Condition(
-                                parse.VariableExpression("B"),
+                                parse.VariableExpression("b"),
                                 "=",
                                 0,
                                 parse.ConditionEnum.INITIAL,
                             )
                         ],
                         [
-                            parse.Let(None, parse.VariableExpression("B"), 5),
-                            parse.Print(None, parse.VariableExpression("A")),
-                            parse.Goto(None, 20),
-                            parse.Print(None, "No droids here."),
+                            parse.Let(None, parse.VariableExpression("b"), 5),
+                            parse.Print(None, [parse.VariableExpression("a")]),
+                            parse.If(
+                                None,
+                                [
+                                    parse.Condition(
+                                        parse.VariableExpression("b"),
+                                        ">",
+                                        0,
+                                        parse.ConditionEnum.INITIAL,
+                                    )
+                                ],
+                                [parse.Goto(None, 20)],
+                            ),
+                            parse.Print(None, ['"No droids here."']),
                         ],
                     ),
                 ],
             ),
-            parse.Let(20, parse.VariableExpression("A"), 7),
-            parse.Print(None, parse.VariableExpression("B")),
-            parse.Print(None, parse.VariableExpression("A")),
+            parse.Let(20, parse.VariableExpression("a"), 7),
+            parse.Print(None, [parse.VariableExpression("b")]),
+            parse.Print(None, [parse.VariableExpression("a")]),
         ]
         program = parse.Program(statements)
         self.assertEqual(classify_goto(program), "3.1")
@@ -138,7 +149,7 @@ class TestGotoELim(unittest.TestCase):
         process = subprocess.call(["rustc", "3_1.rs"], subprocess.PIPE)
         process = subprocess.Popen(["./3_1"], stdout=subprocess.PIPE)
         (program_output, _) = process.communicate()
-        self.assertEqual(b"157\n", program_output)
+        self.assertEqual(b"1\n1\n5\n7\n", program_output)
 
     def tearDown(self):
         globs = [u"1_1_bas*", u"1_1_bare_bas*", u"1_2_bas*", u"3_1*"]
