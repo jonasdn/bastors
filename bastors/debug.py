@@ -11,6 +11,9 @@ def expression(exp):
     if isinstance(exp, parse.VariableExpression):
         return "%s" % exp.var
 
+    if isinstance(exp, parse.NotExpression):
+        return "not %s" % expression(exp.exp)
+
     if isinstance(exp, parse.ArithmeticExpression):
         return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
 
@@ -21,6 +24,12 @@ def expression(exp):
 
 
 def format_condition(conditions):
+    if isinstance(conditions, parse.VariableExpression):
+        return expression(conditions)
+
+    if isinstance(conditions, parse.NotExpression):
+        return expression(conditions)
+
     code = ""
     for cond in conditions:
         if cond.type == parse.ConditionEnum.AND:

@@ -20,6 +20,9 @@ def expression(exp):
     if isinstance(exp, parse.VariableExpression):
         return "state.%s" % exp.var
 
+    if isinstance(exp, parse.NotExpression):
+        return "!%s" % expression(exp.exp)
+
     if isinstance(exp, parse.ArithmeticExpression):
         return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
 
@@ -36,6 +39,12 @@ def format_condition(conditions):
             a <> b becomes a != b
     The function will also add && or || in case of an array of condtions.
     """
+    if isinstance(conditions, parse.VariableExpression):
+        return expression(conditions)
+
+    if isinstance(conditions, parse.NotExpression):
+        return expression(conditions)
+
     code = ""
     for cond in conditions:
         if cond.type == parse.ConditionEnum.AND:

@@ -45,6 +45,12 @@ def invert_conditions(conditions):
         not(A and B) = not A or  not B
         not(A or  B) = not A and not B
     """
+    if isinstance(conditions, VariableExpression):
+        return NotExpression(conditions)
+
+    if isinstance(conditions, NotExpression):
+        return conditions.exp
+
     table = {"<>": "=", "<=": ">", ">=": "<"}
     inv_conds = []
     for cond in conditions:
@@ -85,6 +91,7 @@ End = namedtuple("End", ["label"])
 ArithmeticExpression = namedtuple("ArithmeticExpression", ["left", "operator", "right"])
 BooleanExpression = namedtuple("BooleanExpression", ["conditions"])
 VariableExpression = namedtuple("VariableExpression", ["var"])
+NotExpression = namedtuple("NotExpression", ["exp"])
 
 
 class ParseError(Exception):
