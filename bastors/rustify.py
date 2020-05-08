@@ -226,6 +226,9 @@ class Rustify(Visitor):
         self._indent = self._indent - 1
         self._code[self._context].append(Line(self._indent, "}"))
 
+    def visit_Break(self, node):
+        self.__add_line(self._indent, "break;")
+
     def visit_If(self, if_node):
         """ Generate Rust code from TInyBasic IF statement, the grunt work is
             performed by the format_condition() function. """

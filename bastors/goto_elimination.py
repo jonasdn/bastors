@@ -19,6 +19,7 @@ import bastors.parse as parse
 #
 GotoLabelPair = namedtuple("GotoLabelPair", ["goto_path", "label_path"])
 Loop = namedtuple("Loop", ["label", "conditions", "statements"])
+Break = namedtuple("Break", ["label"])
 
 
 class GotoEliminationError(Exception):
