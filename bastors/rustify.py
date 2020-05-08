@@ -1,11 +1,19 @@
 """ Converts a basic TinyBasic program (bas) to rust code (rs) """
 from collections import defaultdict
 from collections import namedtuple
+from enum import Enum
 import bastors.parse as parse
 from bastors.visitor import Visitor
 
 # Represent a line of Rust code at an indentation level
 Line = namedtuple("Line", ["indent", "code"])
+
+
+class VariableTypeEnum(Enum):
+    """Represents the types of a condition, used in if statements or loops"""
+
+    INTEGER = 0
+    BOOLEAN = 1
 
 
 def expression(exp):
@@ -14,6 +22,9 @@ def expression(exp):
 
     if isinstance(exp, parse.ArithmeticExpression):
         return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
+
+    if isinstance(exp, parse.BooleanExpression):
+        return format_condition(exp.conditions)
 
     return str(exp)
 
@@ -67,13 +78,20 @@ class Rustify(Visitor):
     def __output_state(self, file):
         if len(self._variables) > 0:
             print("struct State {", file=file)
-            for var in self._variables:
-                print("%s%s: i32," % (" " * 4, var), file=file)
+            for var, var_type in self._variables:
+                if var_type == VariableTypeEnum.BOOLEAN:
+                    type_rep = "bool"
+                else:
+                    type_rep = "i32"
+                print("%s%s: %s," % (" " * 4, var, type_rep), file=file)
             print("}\n", file=file)
 
             init_state = "let mut state: State = State { "
-            for var in self._variables:
-                init_state += "%s: 0, " % var
+            for var, var_type in self._variables:
+                if var_type == VariableTypeEnum.BOOLEAN:
+                    init_state += "%s: false, " % var
+                else:
+                    init_state += "%s: 0, " % var
             init_state += " };"
             self._code["main"].insert(0, Line(self._indent, init_state))
 
@@ -120,7 +138,7 @@ class Rustify(Visitor):
         self._crates.add("std::io")
 
         for var in node.variables:
-            self._variables.add(var.var)
+            self._variables.add((var.var, VariableTypeEnum.INTEGER))
             self.__add_line(self._indent, "loop {")
             self.__add_line(self._indent + 1, "let mut input = String::new();")
 
@@ -151,8 +169,11 @@ class Rustify(Visitor):
 
     def visit_Let(self, let_node):
         """ Generate Rust from TinyBasic LET """
+        if isinstance(let_node.rval, parse.BooleanExpression):
+            self._variables.add((let_node.lval.var, VariableTypeEnum.BOOLEAN))
+        else:
+            self._variables.add((let_node.lval.var, VariableTypeEnum.INTEGER))
 
-        self._variables.add(let_node.lval.var)
         code = "%s = %s;" % (expression(let_node.lval), expression(let_node.rval),)
 
         self._code[self._context].append(Line(self._indent, code))

@@ -14,6 +14,9 @@ def expression(exp):
     if isinstance(exp, parse.ArithmeticExpression):
         return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
 
+    if isinstance(exp, parse.BooleanExpression):
+        return format_condition(exp.conditions)
+
     return str(exp)
 
 

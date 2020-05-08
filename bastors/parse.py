@@ -83,6 +83,7 @@ Input = namedtuple("Input", ["label", "variables"])
 End = namedtuple("End", ["label"])
 
 ArithmeticExpression = namedtuple("ArithmeticExpression", ["left", "operator", "right"])
+BooleanExpression = namedtuple("BooleanExpression", ["conditions"])
 VariableExpression = namedtuple("VariableExpression", ["var"])
 
 
