@@ -275,7 +275,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             raise ParseError("expected number [%d:%d]" % (line, col), line, col)
 
         fn = Gosub(label, target_label)
-        self.functions[label] = fn
+        self.functions[target_label] = fn
         return fn
 
     def __parse_input(self, label):

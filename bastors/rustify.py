@@ -170,7 +170,7 @@ class Rustify(Visitor):
                 argument = "&mut state"
         else:
             argument = str()
-        code = "f_%s(%s);" % (node.label, argument)
+        code = "f_%s(%s);" % (node.target_label, argument)
         self._code[self._context].append(Line(self._indent, code))
 
     def visit_Return(self, node):
