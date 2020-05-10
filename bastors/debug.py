@@ -24,18 +24,20 @@ def expression(exp):
 
 
 def format_condition(conditions):
-    if isinstance(conditions, parse.VariableExpression):
-        return expression(conditions)
-
-    if isinstance(conditions, parse.NotExpression):
-        return expression(conditions)
-
     code = ""
     for cond in conditions:
         if cond.type == parse.ConditionEnum.AND:
             code += " AND "
         elif cond.type == parse.ConditionEnum.OR:
             code += " OR "
+
+        if isinstance(cond, parse.VariableCondition):
+            code += "%s" % cond.var
+            continue
+
+        if isinstance(cond, parse.NotVariableCondition):
+            code += "%s" % cond.var
+            continue
 
         code += "%s %s %s" % (
             expression(cond.left),

@@ -332,7 +332,9 @@ def algo_3_1__label_in_parent_block__before(pair, statements):
     )
     block.insert(pair.goto_path[-1], temp_var)
     goto_stmt = parse.If(
-        goto_stmt.label, parse.VariableExpression(temp_name), goto_stmt.then
+        goto_stmt.label,
+        [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+        goto_stmt.then,
     )
 
     # Update the GotoLabelPair
@@ -349,7 +351,11 @@ def algo_3_1__label_in_parent_block__before(pair, statements):
         print
         if is_in_loop(statements, pair.goto_path):
             block[pair.goto_path[-1]] = (
-                parse.If(None, parse.VariableExpression(temp_name), [Break(None)]),
+                parse.If(
+                    None,
+                    [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+                    [Break(None)],
+                ),
             )
         else:
             stmts = block[pair.goto_path[-1] + 1 :]
@@ -357,7 +363,9 @@ def algo_3_1__label_in_parent_block__before(pair, statements):
 
             if_stmt = parse.If(
                 None,
-                parse.invert_conditions(parse.VariableExpression(temp_name)),
+                parse.invert_conditions(
+                    [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)]
+                ),
                 stmts,
             )
             block[pair.goto_path[-1]] = if_stmt

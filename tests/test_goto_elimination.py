@@ -108,7 +108,7 @@ class TestGotoELim(unittest.TestCase):
                         [
                             parse.Condition(
                                 parse.VariableExpression("b"),
-                                "!=",
+                                "<>",
                                 2,
                                 parse.ConditionEnum.INITIAL,
                             )

@@ -36,6 +36,8 @@ class ConditionEnum(Enum):
     OR = 2
 
 
+VariableCondition = namedtuple("VariableCondition", ["var", "type"])
+NotVariableCondition = namedtuple("VariableCondition", ["var", "type"])
 Condition = namedtuple("Condition", ["left", "operator", "right", "type"])
 
 
@@ -45,15 +47,17 @@ def invert_conditions(conditions):
         not(A and B) = not A or  not B
         not(A or  B) = not A and not B
     """
-    if isinstance(conditions, VariableExpression):
-        return NotExpression(conditions)
-
-    if isinstance(conditions, NotExpression):
-        return conditions.exp
-
     table = {"<>": "=", "<=": ">", ">=": "<"}
     inv_conds = []
     for cond in conditions:
+        if isinstance(cond, VariableCondition):
+            inv_conds.append(NotVariableCondition(cond.var, cond.type))
+            continue
+
+        if isinstance(cond, VariableCondition):
+            inv_conds.append(VariableCondition(cond.var, cond.type))
+            continue
+
         # invert the relation
         for op1, op2 in table.items():
             if cond.operator == op1:
