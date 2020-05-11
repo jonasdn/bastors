@@ -86,7 +86,7 @@ class Rustify(Visitor):
     def __output_state(self, file):
         if len(self._variables) > 0:
             print("struct State {", file=file)
-            for var, var_type in self._variables:
+            for var, var_type in sorted(self._variables):
                 if var_type == VariableTypeEnum.BOOLEAN:
                     type_rep = "bool"
                 else:
@@ -95,7 +95,7 @@ class Rustify(Visitor):
             print("}\n", file=file)
 
             init_state = "let mut state: State = State { "
-            for var, var_type in self._variables:
+            for var, var_type in sorted(self._variables):
                 if var_type == VariableTypeEnum.BOOLEAN:
                     init_state += "%s: false, " % var
                 else:
