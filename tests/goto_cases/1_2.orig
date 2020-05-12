@@ -1,0 +1,10 @@
+
+main:
+10       LET a=2
+20       LET b=b + 2 + a
+30       LET c=a * 2 + b
+40       LET a=a + 1
+50       If c < 50 Then
+50         Goto 30
+60       Print a,b,c
+70       End

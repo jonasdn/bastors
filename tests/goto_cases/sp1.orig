@@ -1,0 +1,17 @@
+
+main:
+1        LET a=2
+2        LET b=b + 2 + a
+         If a = 0 Then
+           Goto 7
+3        LET c=a * 2 + b
+4        LET a=a + 1
+         If b > 3 Then
+           Goto 10
+5        LET c=a + b
+6        Print a,b,c
+7        Input a, 
+8        Print "HELLO"
+9        Print "WORLD"
+10       Input b, 
+11       End

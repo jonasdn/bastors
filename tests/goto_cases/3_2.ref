@@ -1,0 +1,19 @@
+
+main:
+1        LET a=1
+2        LET b=2
+         If a > 0 Then
+           Loop
+3            Print a
+4            LET b=0
+             If b = 0 Then
+5              LET b=5
+6              Print a
+               LET t1=b > 0
+               If NOT t1 Then
+7                Print "Hello"
+             If NOT t1 Then
+               Break
+8          LET a=0
+9          LET b=5
+10       End

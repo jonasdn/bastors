@@ -1,0 +1,8 @@
+
+main:
+10       LET a=1
+20       If false Then
+30         LET b=a + 2
+40         Print b
+50       Print a
+60       End

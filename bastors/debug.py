@@ -36,7 +36,7 @@ def format_condition(conditions):
             continue
 
         if isinstance(cond, parse.NotVariableCondition):
-            code += "%s" % cond.var
+            code += "NOT %s" % cond.var
             continue
 
         code += "%s %s %s" % (
@@ -74,7 +74,7 @@ class Print(Visitor):
 
     def visit_Program(self, node):
         for context in node.statements.keys():
-            print("\nContext %s:" % context, file=self._out)
+            print("\n%s:" % context, file=self._out)
             self._indent += 1
             for statement in node.statements[context]:
                 self.visit(statement)
@@ -93,7 +93,7 @@ class Print(Visitor):
         self.__print("Goto %s" % node.target_label, node.label)
 
     def visit_Let(self, node):
-        let = "LET %s=%s;" % (expression(node.lval), expression(node.rval),)
+        let = "LET %s=%s" % (expression(node.lval), expression(node.rval),)
         self.__print(let, node.label)
 
     def visit_Print(self, node):

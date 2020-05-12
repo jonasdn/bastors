@@ -1,0 +1,25 @@
+
+main:
+1        LET a=1
+2        LET b=2
+         If a > 0 Then
+3          Print a
+4          LET b=0
+           If b = 0 Then
+5            LET b=5
+6            Print a
+             If b > 0 Then
+7              LET a=55
+8              LET b=0
+               LET t1=b <> 0
+               If NOT t1 Then
+9                Print "Hello"
+10               Print "World"
+             If NOT t1 Then
+11             LET a=0
+12             LET b=5
+           If NOT t1 Then
+13           Print "No droids here."
+14         Print "Game"
+15         Print "over"
+16       End

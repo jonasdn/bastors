@@ -1,0 +1,31 @@
+
+main:
+1        LET a=0
+2        Print "S2"
+         If a = 0 Then
+3          Print "S3"
+4          Print "S4"
+           Loop
+             If a > 0 OR t1 Then
+               If NOT t1 Then
+5                Print "S5"
+7                Print "S7"
+8              Print "S8"
+9              Print "S9"
+10           Print "S10"
+             If a = 0 Then
+11             Print "S11"
+12             Print "S12"
+               If a > 0 Then
+13               Print "S13"
+14               Print "S14"
+                 LET t1=a < 0
+                 If NOT t1 Then
+15                 Print "S15"
+16                 Print "S16"
+               If NOT t1 Then
+17               Print "S17"
+             If NOT t1 Then
+               Break
+18         Print "S18"
+10       End

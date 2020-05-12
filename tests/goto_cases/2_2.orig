@@ -1,0 +1,23 @@
+
+main:
+1        LET a=0
+2        LET d=78
+         If a >= 0 Then
+3          Print a
+4          LET a=4
+           If a > 0 Then
+5            Print a
+6            LET c=7
+             If c = 5 Then
+7              LET b=2
+8              Print c
+9              LET d=32
+10             LET e=5
+11           LET a=d
+12           Print a
+13         LET b=2
+14         LET a=2
+           If b <> 2 Then
+             Goto 9
+15         LET b=7
+16       End

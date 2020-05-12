@@ -1,0 +1,16 @@
+
+main:
+1        LET a=1
+2        LET b=2
+         If a > 0 Then
+3          Print a
+4          LET b=0
+           If b = 0 Then
+5            LET b=5
+6            Print a
+             If b > 0 Then
+               Goto 3
+7            Print "Hello"
+8          LET a=0
+9          LET b=5
+10       End

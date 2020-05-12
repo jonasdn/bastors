@@ -1,0 +1,16 @@
+
+main:
+1        LET a=1
+2        LET b=2
+         If a > 0 Then
+3          Print a
+4          LET b=0
+           If b = 0 Then
+5            LET b=5
+6            Print a
+             If b > 0 Then
+               Goto 8
+7            Print "No droids here."
+8        LET a=7
+9        Print b
+10       Print a
