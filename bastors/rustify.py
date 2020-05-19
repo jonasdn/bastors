@@ -162,13 +162,10 @@ class Rustify(Visitor):
             self.__add_line(self._indent, "}")
 
     def visit_Gosub(self, node):
-        if len(self._variables) > 0:
-            if self.__in_function():
-                argument = "state"
-            else:
-                argument = "&mut state"
+        if self.__in_function():
+            argument = "state"
         else:
-            argument = str()
+            argument = "&mut state"
         code = "f_%s(%s);" % (node.target_label, argument)
         self._code[self._context].append(Line(self._indent, code))
 
