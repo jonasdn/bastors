@@ -37,7 +37,8 @@ class ConditionEnum(Enum):
 
 
 VariableCondition = namedtuple("VariableCondition", ["var", "type"])
-NotVariableCondition = namedtuple("VariableCondition", ["var", "type"])
+NotVariableCondition = namedtuple("NotVariableCondition", ["var", "type"])
+TrueFalseCondition = namedtuple("TrueFalseCondition", ["value", "type"])
 Condition = namedtuple("Condition", ["left", "operator", "right", "type"])
 
 
@@ -54,8 +55,15 @@ def invert_conditions(conditions):
             inv_conds.append(NotVariableCondition(cond.var, cond.type))
             continue
 
-        if isinstance(cond, VariableCondition):
+        if isinstance(cond, NotVariableCondition):
             inv_conds.append(VariableCondition(cond.var, cond.type))
+            continue
+
+        if isinstance(cond, TrueFalseCondition):
+            if cond.value == "true":
+                inv_conds.append(TrueFalseCondition("false", cond.type))
+            else:
+                inv_conds.append(TrueFalseCondition("true", cond.type))
             continue
 
         # invert the relation
@@ -84,7 +92,7 @@ def invert_conditions(conditions):
 #
 Program = namedtuple("Program", "statements")
 Let = namedtuple("Let", ["label", "lval", "rval"])
-If = namedtuple("If", ["label", "conditions", "then"])
+If = namedtuple("If", ["label", "conditions", "statements"])
 Goto = namedtuple("Goto", ["label", "target_label"])
 Print = namedtuple("Print", ["label", "exp_list"])
 Gosub = namedtuple("Gosub", ["label", "target_label"])

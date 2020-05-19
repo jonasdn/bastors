@@ -2,6 +2,7 @@
 from collections import namedtuple
 import sys
 import bastors.parse as parse
+import bastors.debug as debug
 
 #
 # A path is the way you need to travel throguh a list of statements to get
@@ -72,6 +73,8 @@ def eliminate_goto(program):
             goto L1
         }
     """
+    global temp_var_num
+    temp_var_num = 0
     statements = program.statements
     while True:  # loop until no GOTOs found
         found = False
@@ -90,26 +93,28 @@ def eliminate_goto(program):
                     algo_2_1__goto_in_parent_block__before(pair, statements[context])
                     break
                 if case == "2.2":
-                    raise GotoEliminationError(
-                        "case %s is not implemented: GOTO occurs in some "
-                        "parent block (> 1) of the block where the label "
-                        "is contained in and label occurs before the goto." % case
-                    )
+                    algo_2_2__goto_in_parent_block__before(pair, statements[context])
+                    break
                 if case == "3.1":
                     algo_3_1__label_in_parent_block__before(pair, statements[context])
                     break
                 if case == "3.2":
-                    raise GotoEliminationError(
-                        "case %s not implemented: Label occurs in some "
-                        "parent block (> 1) of the block where the goto is "
-                        "contained in and label occurs before the goto." % case
-                    )
+                    algo_3_2__label_in_parent_block__after(pair, statements[context])
+                    break
+                if case == "4.1":
+                    algo_4_1__label_in_disjunct__before(pair, statements[context])
+                    break
+                if case == "4.2":
+                    algo_4_2__label_in_disjunct__after(pair, statements[context])
+                    break
 
                 # No matches among supported cases
                 block = get_block(statements[context], pair.goto_path)
                 if_stmt = block[pair.goto_path[-1]]
+                debug.dump(program)
                 raise GotoEliminationError(
-                    "Unsupported GOTO case (GOTO %s)" % if_stmt.then[0].target_label
+                    "Unsupported GOTO case (GOTO %s)"
+                    % if_stmt.statements[0].target_label
                 )
 
         if found is False:
@@ -187,7 +192,7 @@ def classify_pair(pair):
         if goto_sub_path[:-1] == pair.label_path[:-1]:
             return "3.1" if before else "3.2"
 
-    return None
+    return "4.1" if before else "4.2"
 
 
 def goto_before_label(pair):
@@ -216,7 +221,7 @@ def get_block(statements, path):
 
         statement = statements[index]
         if isinstance(statement, parse.If) or isinstance(statement, Loop):
-            return get_block(statement.then, path[1:])
+            return get_block(statement.statements, path[1:])
 
     return None
 
@@ -236,7 +241,7 @@ def is_in_loop(statements, path):
             return isinstance(statement, Loop)
 
         if isinstance(statement, parse.If) or isinstance(statement, Loop):
-            return is_in_loop(statement.then, path[1:])
+            return is_in_loop(statement.statements, path[1:])
 
     return False
 
@@ -263,11 +268,16 @@ def algo_1_1_same_level_same_block__before(pair, statements):
     # label index.
     #
     between = slice(pair.goto_path[-1] + 1, pair.label_path[-1])
-    if_stmt = parse.If(
-        goto_stmt.label, parse.invert_conditions(goto_stmt.conditions), block[between]
-    )
-    block[pair.goto_path[-1]] = if_stmt
-    del block[between]
+    if len(block[between]) > 0:
+        if_stmt = parse.If(
+            goto_stmt.label,
+            parse.invert_conditions(goto_stmt.conditions),
+            block[between],
+        )
+        block[pair.goto_path[-1]] = if_stmt
+        del block[between]
+    else:
+        del block[pair.goto_path[-1]]
 
 
 def algo_1_2_same_level_same_block__after(pair, statements):
@@ -296,6 +306,11 @@ def algo_1_2_same_level_same_block__after(pair, statements):
     # above.
     #
     del block[pair.label_path[-1] + 1 : pair.goto_path[-1] + 1]
+    new_goto_path = pair.goto_path
+    new_goto_path[-1] -= len(block[between]) + 1
+    new_label_path = pair.label_path
+    new_label_path[-1] += 1
+    return GotoLabelPair(new_goto_path, new_label_path)
 
 
 def algo_2_1__goto_in_parent_block__before(pair, statements):
@@ -331,27 +346,33 @@ def algo_2_1__goto_in_parent_block__before(pair, statements):
     block = get_block(statements, pair.goto_path)
     goto_stmt = block[pair.goto_path[path_index]]
     goto_conds = goto_stmt.conditions
-    temp_name = get_temp_name()
-    temp_var = parse.Let(
-        None, parse.VariableExpression(temp_name), parse.BooleanExpression(goto_conds),
-    )
-    block.insert(pair.goto_path[path_index], temp_var)
-    goto_stmt = parse.If(
-        goto_stmt.label,
-        [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
-        goto_stmt.then,
-    )
-    # Update the GotoLabelPair to account for new statement
-    new_goto_path = pair.goto_path
-    new_goto_path[path_index] += 1
-    new_label_path = pair.label_path
-    new_label_path[path_index] += 1
-    pair = GotoLabelPair(new_goto_path, new_label_path)
+    if len(goto_conds) > 1 or not isinstance(goto_conds[0], parse.VariableCondition):
+        temp_name = get_temp_name()
+        temp_var = parse.Let(
+            None,
+            parse.VariableExpression(temp_name),
+            parse.BooleanExpression(goto_conds),
+        )
+        block.insert(pair.goto_path[path_index], temp_var)
+        goto_stmt = parse.If(
+            goto_stmt.label,
+            [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+            goto_stmt.statements,
+        )
+        # Update the GotoLabelPair to account for new statement
+        new_goto_path = pair.goto_path
+        new_goto_path[path_index] += 1
+        new_label_path = pair.label_path
+        new_label_path[path_index] += 1
+        pair = GotoLabelPair(new_goto_path, new_label_path)
 
-    # Add new modified goto stmt
-    block[pair.goto_path[path_index]] = goto_stmt
+        # Add new modified goto stmt
+        block[pair.goto_path[path_index]] = goto_stmt
+    else:
+        temp_name = goto_conds[0].var
 
     while True:
+        path_index = len(pair.goto_path) - 1
         #
         # Step 2, modify the immediate child block (if conditioned)
         #
@@ -368,26 +389,36 @@ def algo_2_1__goto_in_parent_block__before(pair, statements):
             new_conditions = stmt.conditions + [
                 parse.VariableCondition(temp_name, parse.ConditionEnum.OR)
             ]
-            new_if = parse.If(stmt.label, new_conditions, stmt.then)
+            new_if = parse.If(stmt.label, new_conditions, stmt.statements)
             block[index] = new_if
             label_block = new_if
         #
         # Step 3, conditionally execute statements after goto statement
         #
         stmts = block[pair.goto_path[-1] + 1 : label_block_index]
-        del block[pair.goto_path[-1] + 1 : label_block_index]
-        if_stmt = parse.If(None, parse.invert_conditions(goto_conds), stmts)
-        block.insert(pair.goto_path[-1] + 1, if_stmt)
+        if len(stmts) > 0:
+            del block[pair.goto_path[-1] + 1 : label_block_index]
+            if_stmt = parse.If(
+                None,
+                parse.invert_conditions(
+                    [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)]
+                ),
+                stmts,
+            )
+            block.insert(pair.goto_path[-1] + 1, if_stmt)
         # Update label_block_index
         #
         # Step 4, move the goto statement down to child block from step 2
         #
         label_block_index = block.index(label_block)
-        label_block.then.insert(0, block[pair.goto_path[path_index]])
+        if isinstance(label_block, parse.If):
+            label_block.statements.insert(0, block[pair.goto_path[path_index]])
+        else:
+            label_block.statements.insert(0, block[pair.goto_path[path_index]])
         del block[pair.goto_path[path_index]]
 
-        # Update GotoLabelPaur to accound for the churn
-        # Decrease the label block ondex, because of the GOTO move
+        # Update GotoLabelPaur to account for the churn
+        # Decrease the label block index, because of the GOTO move
         # Increase the next blocks label index, because of the GOTO move
         label_block_index -= 1
         new_label_path = pair.label_path
@@ -405,69 +436,118 @@ def algo_2_1__goto_in_parent_block__before(pair, statements):
     #
     # Step 6, apply algo 1.1
     #
+    block = get_block(statements, pair.label_path)
+    label_stmt = block[pair.label_path[-1]]
     algo_1_1_same_level_same_block__before(pair, statements)
+    #
+    # Step 7, if label was in a loop, re-initialize temp var to false
+    #
+    if isinstance(label_block, Loop):
+        temp_var = parse.Let(
+            None,
+            parse.VariableExpression(temp_name),
+            parse.BooleanExpression(
+                [parse.TrueFalseCondition("false", parse.ConditionEnum.INITIAL)]
+            ),
+        )
+        label_path = list()
+        find_label(label_stmt.label, statements, label_path)
+        block = get_block(statements, label_path[:-1])
+        label_index = label_path[:1][-1]
+        label_block.statements.insert(label_index, temp_var)
 
 
-def algo_3_1__label_in_parent_block__before(pair, statements):
+def algo_2_2__goto_in_parent_block__before(pair, statements):
     """
-    1) Introduce a new variable to the store the value of the condition that
-       is applied on the goto statement and use this new variable as the
-       conditional for the goto statement.
+    1) Introduce a new temporary variable to the store the value of the
+       condition that is applied on the goto statement and use this new
+       variable as the conditional for the goto statement.
 
-    2) If goto is inside a block that is not a loop, then conditionally execute
-       all the statements after the goto statement in the same block, based on
-       the inverse condition that is applied on the goto statement. If goto is
-       inside a loop, use break to break out of the loop.
+    2) Find the parent block where the label is contained, which is in the
+       same block as the goto statement. Encapsulate this parent block and
+       all the statements till the goto statement in a do-while loop, based on
+       the condition that is applied on the goto statement.
 
-    3) Move the goto statement upwards to the parent block (i.e. move the goto
-       statement to the next statement after the current block).
+    3) Move the goto statement as the first statement in the do-while loop
+       created in step#2
 
-    4) Repeat steps #2 and #3 till the goto statement and label statement end
-       up in the same block.
+    4) Apply Case 2.1 algorithm
 
-    5) Apply Case 1.1 algorithm
     """
     #
     # Step 1, introduce new variable and use it for goto conditional
     #
+    path_index = len(pair.goto_path) - 1
+    block = get_block(statements, pair.goto_path)
+    goto_stmt = block[pair.goto_path[path_index]]
+    goto_conds = goto_stmt.conditions
+    if len(goto_conds) > 1 or not isinstance(goto_conds[0], parse.VariableCondition):
+        temp_name = get_temp_name()
+        temp_var = parse.Let(
+            None,
+            parse.VariableExpression(temp_name),
+            parse.BooleanExpression(goto_conds),
+        )
+        block.insert(pair.goto_path[path_index], temp_var)
+        goto_stmt = parse.If(
+            goto_stmt.label,
+            [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+            goto_stmt.statements,
+        )
+        # Update the GotoLabelPair to account for new statement
+        new_goto_path = pair.goto_path
+        new_goto_path[path_index] += 1
+        pair = GotoLabelPair(new_goto_path, pair.label_path)
+
+        # Add new modified goto stmt
+        block[pair.goto_path[path_index]] = goto_stmt
+    else:
+        temp_name = goto_conds[0].var
+    #
+    # Step 2, encapsulate parent block in do-while
+    #
+    label_block_index = pair.label_path[path_index]
+    stmts = block[label_block_index : pair.goto_path[-1]]
+    del block[label_block_index : pair.goto_path[-1]]
+    loop_stmt = Loop(
+        None, [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)], stmts,
+    )
+    block.insert(label_block_index, loop_stmt)
+    #
+    # Step 3, move GOTO to first in loop
+    #
+    new_goto_index = block.index(goto_stmt)
+    del block[new_goto_index]
+    stmts.insert(0, goto_stmt)
+
+
+def move_up_a_block(pair, statements, temp_name, is_after):
+    """
+    1) If goto is inside a block that is not a loop, statements conditionally execute
+       all the statements after the goto statement in the same block, based on
+       the inverse condition that is applied on the goto statement. If goto is
+       inside a loop, use break to break out of the loop.
+
+    2) Move the goto statement upwards to the parent block (i.e. move the goto
+       statement to the next statement after the current block).
+    """
     block = get_block(statements, pair.goto_path)
     goto_stmt = block[pair.goto_path[-1]]
-    goto_conds = goto_stmt.conditions
-    temp_name = get_temp_name()
-    temp_var = parse.Let(
-        None, parse.VariableExpression(temp_name), parse.BooleanExpression(goto_conds),
-    )
-    block.insert(pair.goto_path[-1], temp_var)
-    goto_stmt = parse.If(
-        goto_stmt.label,
-        [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
-        goto_stmt.then,
-    )
-
-    # Update the GotoLabelPair
-    new_goto_path = pair.goto_path
-    new_goto_path[-1] += 1
-    pair = GotoLabelPair(new_goto_path, pair.label_path)
-    block[pair.goto_path[-1]] = goto_stmt
-
-    while True:
-        block = get_block(statements, pair.goto_path)
-        #
-        # Step 2, use if-statement, or break out of loop.
-        #
-        print
-        if is_in_loop(statements, pair.goto_path):
-            block[pair.goto_path[-1]] = (
-                parse.If(
-                    None,
-                    [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
-                    [Break(None)],
-                ),
-            )
-        else:
-            stmts = block[pair.goto_path[-1] + 1 :]
+    #
+    # Step 2, use if-statement, or break out of loop.
+    #
+    if is_in_loop(statements, pair.goto_path):
+        block[pair.goto_path[-1]] = (
+            parse.If(
+                None,
+                [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+                [Break(None)],
+            ),
+        )
+    else:
+        stmts = block[pair.goto_path[-1] + 1 :]
+        if len(stmts) > 0:
             del block[pair.goto_path[-1] + 1 :]
-
             if_stmt = parse.If(
                 None,
                 parse.invert_conditions(
@@ -476,23 +556,199 @@ def algo_3_1__label_in_parent_block__before(pair, statements):
                 stmts,
             )
             block[pair.goto_path[-1]] = if_stmt
-        #
-        # Step 3, move goto up one block
-        #
-        new_goto_path = pair.goto_path[:-1]
-        new_goto_path[-1] = new_goto_path[-1] + 1
-        new_block = get_block(statements, new_goto_path)
-        new_block.insert(new_goto_path[-1], goto_stmt)
+        else:
+            del block[pair.goto_path[-1]]
+    #
+    # Step 3, move goto up one block
+    #
+    new_goto_path = pair.goto_path[:-1]
+    new_goto_path[-1] = new_goto_path[-1] + 1
+    new_block = get_block(statements, new_goto_path)
+    new_block.insert(new_goto_path[-1], goto_stmt)
+    new_label_path = pair.label_path
+    if not is_after and len(new_goto_path) <= len(new_label_path):
+        new_label_path[len(new_goto_path) - 1] += 1
+    return GotoLabelPair(new_goto_path, new_label_path)
+
+
+def algo_3(pair, statements, is_after):
+    """
+    The parts of 3.1 algo and 3.2 algo that are equal:
+
+    1) Introduce a new variable to the store the value of the condition that
+       is applied on the goto statement and use this new variable as the
+       conditional for the goto statement.
+
+    2) Move goto up a block, encapsulating
+
+    3) Repeat steps #2  till the goto statement and label statement end
+       up in the same block.
+    """
+    #
+    # Step 1, introduce new variable and use it for goto conditional
+    #
+    path_index = len(pair.goto_path) - 1
+    block = get_block(statements, pair.goto_path)
+    goto_stmt = block[pair.goto_path[path_index]]
+    goto_conds = goto_stmt.conditions
+    if len(goto_conds) > 1 or not isinstance(goto_conds[0], parse.VariableCondition):
+        block = get_block(statements, pair.goto_path)
+        goto_stmt = block[pair.goto_path[-1]]
+        goto_conds = goto_stmt.conditions
+        temp_name = get_temp_name()
+        temp_var = parse.Let(
+            None,
+            parse.VariableExpression(temp_name),
+            parse.BooleanExpression(goto_conds),
+        )
+        block.insert(pair.goto_path[-1], temp_var)
+        goto_stmt = parse.If(
+            goto_stmt.label,
+            [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+            goto_stmt.statements,
+        )
+
+        # Update the GotoLabelPair
+        new_goto_path = pair.goto_path
+        new_goto_path[-1] += 1
         pair = GotoLabelPair(new_goto_path, pair.label_path)
+        block[pair.goto_path[-1]] = goto_stmt
+    else:
+        temp_name = goto_conds[0].var
+
+    while True:
+        pair = move_up_a_block(pair, statements, temp_name, is_after)
         #
-        # Step 4, see if we need to do it again, or if algo 1.1 can take over
+        # Step 4, see if we need to do it again, or if algo 1.x can take over
         #
         if pair.label_path[:-1] == pair.goto_path[:-1]:
-            break
+            return pair
+
+
+def algo_3_1__label_in_parent_block__before(pair, statements):
+    """
+    1 ... 4) Decribed in algo_3()
+
+    5)       Apply Case 1.1 algorithm
+    """
+    pair = algo_3(pair, statements, False)
     #
     # Step 5, apply algo 1.1
     #
     algo_1_1_same_level_same_block__before(pair, statements)
+
+
+def algo_3_2__label_in_parent_block__after(pair, statements):
+    """
+    1 ... 4) Decribed in algo_3()
+
+    5)       Apply Case 1.1 algorithm
+
+    6)       Re-initialize the temporary variable (introduced in step#1) to
+             false, just before the statement where label was applied
+    """
+    pair = algo_3(pair, statements, True)
+    path_index = len(pair.goto_path) - 1
+    block = get_block(statements, pair.goto_path)
+    goto_stmt = block[pair.goto_path[path_index]]
+    goto_conds = goto_stmt.conditions
+    #
+    # Step 5, apply algo 1.2
+    #
+    pair = algo_1_2_same_level_same_block__after(pair, statements)
+    #
+    # Step 6, Re-initialize the temporary variable
+    #
+    if is_in_loop(statements, pair.label_path):
+        let_stmt = parse.Let(
+            None,
+            parse.VariableExpression(goto_conds[0].var),
+            parse.BooleanExpression(
+                [parse.TrueFalseCondition("false", parse.ConditionEnum.INITIAL)]
+            ),
+        )
+        block = get_block(statements, pair.label_path)
+        block.insert(pair.label_path[-1], let_stmt)
+
+
+def algo_4(pair, statements, is_after):
+    """
+    The parts of 4.1 algo and 4.2 algo that are equal:
+
+    1) Introduce a new variable to the store the value of the condition that
+       is applied on the goto statement and use this new variable as the
+       conditional for the goto statement.
+
+    2) Move goto up a block, encapsulating
+
+    3) Repeat steps #2  till he goto statement occurs in some parent block
+       of the block where the label is contained in
+    """
+    #
+    # Step 1, introduce new variable and use it for goto conditional
+    #
+    path_index = len(pair.goto_path) - 1
+    block = get_block(statements, pair.goto_path)
+    goto_stmt = block[pair.goto_path[path_index]]
+    goto_conds = goto_stmt.conditions
+    if len(goto_conds) > 1 or not isinstance(goto_conds[0], parse.VariableCondition):
+        block = get_block(statements, pair.goto_path)
+        goto_stmt = block[pair.goto_path[-1]]
+        goto_conds = goto_stmt.conditions
+        temp_name = get_temp_name()
+        temp_var = parse.Let(
+            None,
+            parse.VariableExpression(temp_name),
+            parse.BooleanExpression(goto_conds),
+        )
+        block.insert(pair.goto_path[-1], temp_var)
+        goto_stmt = parse.If(
+            goto_stmt.label,
+            [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)],
+            goto_stmt.statements,
+        )
+
+        # Update the GotoLabelPair
+        new_goto_path = pair.goto_path
+        new_goto_path[-1] += 1
+        pair = GotoLabelPair(new_goto_path, pair.label_path)
+        block[pair.goto_path[-1]] = goto_stmt
+    else:
+        temp_name = goto_conds[0].var
+
+    while True:
+        pair = move_up_a_block(pair, statements, temp_name, is_after)
+        #
+        # Step 4, see if we need to do it again, or if algo 2.x can take over
+        #
+        if classify_pair(pair).startswith("2."):
+            return pair
+
+
+def algo_4_1__label_in_disjunct__before(pair, statements):
+    """
+    1 ... 4) Decribed in algo_4()
+
+    5)       Apply Case 2.1 algorithm
+    """
+    pair = algo_4(pair, statements, False)
+    #
+    # Step 5, apply algo 2.1
+    #
+    algo_2_1__goto_in_parent_block__before(pair, statements)
+
+
+def algo_4_2__label_in_disjunct__after(pair, statements):
+    """
+    1 ... 4) Decribed in algo_4()
+
+    5)       Apply Case 2.2 algorithm
+    """
+    pair = algo_4(pair, statements, True)
+    #
+    # Step 5, apply algo 2.2
+    #
+    algo_2_2__goto_in_parent_block__before(pair, statements)
 
 
 def convert_to_conditional(goto, label, index, statements):
@@ -511,7 +767,7 @@ def convert_to_conditional(goto, label, index, statements):
     The reason for this is that the algorithm used assumes all GOTOs are
     conditional GOTOs.
     """
-    cond = parse.Condition(1, "=", 1, parse.ConditionEnum.INITIAL)
+    cond = parse.TrueFalseCondition("true", parse.ConditionEnum.INITIAL)
     replacement = parse.If(label, [cond], [goto])
     statements[index] = replacement
 
@@ -543,7 +799,7 @@ def find_goto(statements, path):
                 return label
 
         if isinstance(statement, parse.If):
-            label = find_goto(statement.then, path)
+            label = find_goto(statement.statements, path)
             if label is not None:
                 path.insert(0, index)
                 return label
@@ -563,7 +819,7 @@ def find_label(target, statements, path):
                 return True
 
         if isinstance(statement, parse.If):
-            if find_label(target, statement.then, path):
+            if find_label(target, statement.statements, path):
                 path.insert(0, index)
                 return True
     return False

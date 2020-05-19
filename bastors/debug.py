@@ -39,6 +39,10 @@ def format_condition(conditions):
             code += "NOT %s" % cond.var
             continue
 
+        if isinstance(cond, parse.TrueFalseCondition):
+            code += "%s" % cond.value
+            continue
+
         code += "%s %s %s" % (
             expression(cond.left),
             cond.operator,
@@ -108,7 +112,10 @@ class Print(Visitor):
 
         if node.conditions is not None:
             conditions = parse.invert_conditions(node.conditions)
-            self.__print("If %s Then Break" % format_condition(conditions))
+            self.__print("If %s Then" % format_condition(conditions))
+            self._indent += 1
+            self.__print("Break")
+            self._indent -= 1
 
         self._indent -= 1
 
@@ -116,7 +123,7 @@ class Print(Visitor):
         self.__print("If %s Then" % format_condition(node.conditions), node.label)
 
         self._indent += 1
-        for statement in node.then:
+        for statement in node.statements:
             self.visit(statement)
         self._indent -= 1
 

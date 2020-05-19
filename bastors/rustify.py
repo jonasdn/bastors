@@ -51,6 +51,10 @@ def format_condition(conditions):
             code += "!state.%s" % cond.var
             continue
 
+        if isinstance(cond, parse.TrueFalseCondition):
+            code += "%s" % cond.value
+            continue
+
         if cond.operator == "<>":
             relop = "!="
         elif cond.operator == "=":
@@ -232,7 +236,7 @@ class Rustify(Visitor):
         self._code[self._context].append(Line(self._indent, code))
 
         self._indent = self._indent + 1
-        for statement in if_node.then:
+        for statement in if_node.statements:
             self.visit(statement)
         self._indent = self._indent - 1
 
