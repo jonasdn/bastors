@@ -127,6 +127,11 @@ def dump(program, path=None):
     else:
         out = sys.stdout
 
+    if isinstance(program, list):
+        statements = dict()
+        statements["listing"] = program
+        program = parse.Program(statements)
+
     printer = Print(program, out)
     printer.output()
     if path is not None:
