@@ -104,6 +104,7 @@ ArithmeticExpression = namedtuple("ArithmeticExpression", ["left", "operator", "
 BooleanExpression = namedtuple("BooleanExpression", ["conditions"])
 VariableExpression = namedtuple("VariableExpression", ["var"])
 NotExpression = namedtuple("NotExpression", ["exp"])
+ParenExpression = namedtuple("ParenExpression", ["exp"])
 
 
 class ParseError(Exception):
@@ -160,7 +161,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             self.__eat(lex.TokenEnum.LPAREN)
             node = self.__parse_exp()
             self.__eat(lex.TokenEnum.RPAREN)
-            return node
+            return ParenExpression(node)
         return None
 
     def __parse_term(self):

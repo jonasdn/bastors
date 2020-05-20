@@ -28,6 +28,9 @@ def expression(exp):
     if isinstance(exp, parse.BooleanExpression):
         return format_condition(exp.conditions)
 
+    if isinstance(exp, parse.ParenExpression):
+        return "(%s)" % expression(exp.exp)
+
     return str(exp)
 
 
