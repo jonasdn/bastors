@@ -23,7 +23,14 @@ def expression(exp):
         return "state.%s" % exp.var
 
     if isinstance(exp, parse.ArithmeticExpression):
-        return "%s %s %s" % (expression(exp.left), exp.operator, expression(exp.right),)
+        if exp.left is None:  # unary expression
+            return "%s%s" % (exp.operator, expression(exp.right),)
+        else:
+            return "%s %s %s" % (
+                expression(exp.left),
+                exp.operator,
+                expression(exp.right),
+            )
 
     if isinstance(exp, parse.BooleanExpression):
         return format_condition(exp.conditions)
