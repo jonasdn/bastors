@@ -71,7 +71,7 @@ def invert_conditions(conditions):
             if cond.operator == op1:
                 new_op = op2
                 break
-            elif cond.operator == op2:
+            if cond.operator == op2:
                 new_op = op1
                 break
 
