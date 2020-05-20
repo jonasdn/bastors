@@ -75,20 +75,29 @@ class LexError(Exception):
 
 
 class LexIterator:
-    def __init__(self, iter):
-        self._iter = iter
+    """
+    An iterator capable of peeking one(1) char ahead, needed for the lexer
+    we have. It will also keep track of line and column number for us.
+
+    Call peek() to see next char without consuming it.
+    """
+
+    def __init__(self, str_iter):
+        self._iter = str_iter
         self._char = None
         self._peeked = False
         self.line = 1
         self.col = 0
 
     def peek(self):
+        """ Look-ahead at what char next() will return """
         if not self._peeked:
             self._char = next(self._iter, None)
             self._peeked = True
         return self._char
 
     def next(self):
+        """ Return the next char and move the iter formward """
         self._char = self.peek()
 
         if self._char == "\n":
@@ -112,9 +121,9 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
         self._lexeme = ""
         self._tokens = list()
 
-    def __append_token(self, type):
+    def __append_token(self, token_type):
         start = (self._iter.col + 1) - len(self._lexeme)
-        token = Token(self._lexeme, type, self._iter.line, start)
+        token = Token(self._lexeme, token_type, self._iter.line, start)
         self._tokens.append(token)
 
     def __append_symbol(self):
