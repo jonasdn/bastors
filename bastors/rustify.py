@@ -143,6 +143,7 @@ class Rustify(Visitor):
                 self.visit(statement)
 
     def visit_End(self, node):
+        # pylint: disable=unused-argument
         self._crates.add("std::process")
         self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
 
@@ -174,6 +175,7 @@ class Rustify(Visitor):
         self._code[self._context].append(Line(self._indent, code))
 
     def visit_Return(self, node):
+        # pylint: disable=unused-argument
         self.__add_line(self._indent, "return;")
 
     def visit_Let(self, let_node):
@@ -227,6 +229,7 @@ class Rustify(Visitor):
         self._code[self._context].append(Line(self._indent, "}"))
 
     def visit_Break(self, node):
+        # pylint: disable=unused-argument
         self.__add_line(self._indent, "break;")
 
     def visit_If(self, if_node):
