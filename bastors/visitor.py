@@ -1,3 +1,9 @@
+"""
+This module provides a base class for implementing a Visitor pattern style
+travelsal of the statements tree.
+"""
+
+
 class Visitor:
     """ Basis for implementing a visitor pattern to visit all nodes of the
         structure returned from the Parse module.
