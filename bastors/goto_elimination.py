@@ -6,6 +6,13 @@ import bastors.debug as debug
 
 
 class GotoLabelPair:
+    """
+    Represents a GOTO statement and its corresponding target label,
+    constrained to a list of statements.
+
+    See comment in find_pair() for a description of paths.
+    """
+
     def __init__(self, statements, goto_path, label_path):
         self.goto_path = goto_path
         self.label_path = label_path
@@ -34,13 +41,13 @@ class GotoLabelPair:
             return False
 
         for i, index in enumerate(path):
-            statement = statements
+            statement = statements[index]
 
             if i == len(path) - 2:
                 return isinstance(statement, Loop)
 
-            if isinstance(statement, parse.If) or isinstance(statement, Loop):
-                return self.__goto_in_loop(statement.statements, path[1:])
+            if isinstance(statement, (Loop, parse.If)):
+                return self.__path_in_loop(statement.statements, path[1:])
 
         return False
 
@@ -61,15 +68,13 @@ class GotoLabelPair:
         """
         block = get_block(self._statements, self.goto_path)
         goto_stmt = block[self.goto_path[-1]]
-        goto_conds = goto_stmt.conditions
-        if len(goto_conds) > 1 or not isinstance(
-            goto_conds[0], parse.VariableCondition
-        ):
+        conds = goto_stmt.conditions
+        if len(conds) > 1 or not isinstance(conds[0], parse.VariableCondition):
             temp_name = get_temp_name()
             temp_var = parse.Let(
                 None,
                 parse.VariableExpression(temp_name),
-                parse.BooleanExpression(goto_conds),
+                parse.BooleanExpression(conds),
             )
             block.insert(self.goto_path[len(self.goto_path) - 1], temp_var)
             goto_stmt = parse.If(
@@ -86,7 +91,7 @@ class GotoLabelPair:
             # Add new modified goto stmt
             block[self.goto_path[-1]] = goto_stmt
             return temp_name
-        return goto_conds[0].var
+        return conds[0].var
 
     def classify(self):
         """
@@ -152,14 +157,12 @@ class GotoLabelPair:
 Loop = namedtuple("Loop", ["label", "conditions", "statements"])
 Break = namedtuple("Break", ["label"])
 
-temp_var_num = 0  # global
+# pylint: disable=W0603
+TEMP_VAR_NUM = 0  # global
 
 
 class GotoEliminationError(Exception):
     """ An error while eliminating GOTOs """
-
-    def __init__(self, message):
-        super(GotoEliminationError, self).__init__(message)
 
 
 def eliminate_goto(program):
@@ -203,8 +206,8 @@ def eliminate_goto(program):
             goto L1
         }
     """
-    global temp_var_num
-    temp_var_num = 0
+    global TEMP_VAR_NUM
+    TEMP_VAR_NUM = 0
     statements = program.statements
     while True:  # loop until no GOTOs found
         found = False
@@ -240,9 +243,7 @@ def eliminate_goto(program):
 
                 # No matches among supported cases
                 debug.dump(program)
-                raise GotoEliminationError(
-                    "Unsupported GOTO case (GOTO %s)" % pair.get_target_label()
-                )
+                raise GotoEliminationError("Unsupported GOTO case")
 
         if found is False:
             break  # no GOTOs found in program!
@@ -259,6 +260,7 @@ def classify_goto(program):
         pair = find_pair(program.statements[context])
         if pair is not None:
             return pair.classify()
+    return None
 
 
 def get_block(statements, path):
@@ -271,7 +273,7 @@ def get_block(statements, path):
             return statements
 
         statement = statements[index]
-        if isinstance(statement, parse.If) or isinstance(statement, Loop):
+        if isinstance(statement, (Loop, parse.If)):
             return get_block(statement.statements, path[1:])
 
     return None
@@ -279,9 +281,9 @@ def get_block(statements, path):
 
 def get_temp_name():
     """Return the next available name for a temporary variable"""
-    global temp_var_num
-    temp_var_num += 1
-    return "t%d" % temp_var_num
+    global TEMP_VAR_NUM
+    TEMP_VAR_NUM += 1
+    return "t%d" % TEMP_VAR_NUM
 
 
 def algo_1_1_same_level_same_block__before(pair, statements):
@@ -386,12 +388,11 @@ def algo_2_1__goto_in_parent_block__before(pair, statements):
             label_block = stmt
             break
         if isinstance(stmt, parse.If):
-            index = block.index(stmt)
             new_conditions = stmt.conditions + [
                 parse.VariableCondition(temp_name, parse.ConditionEnum.OR)
             ]
             new_if = parse.If(stmt.label, new_conditions, stmt.statements)
-            block[index] = new_if
+            block[block.index(stmt)] = new_if
             label_block = new_if
         #
         # Step 3, conditionally execute statements after goto statement
@@ -399,14 +400,20 @@ def algo_2_1__goto_in_parent_block__before(pair, statements):
         stmts = block[pair.goto_path[-1] + 1 : label_block_index]
         if len(stmts) > 0:
             del block[pair.goto_path[-1] + 1 : label_block_index]
-            if_stmt = parse.If(
-                None,
-                parse.invert_conditions(
-                    [parse.VariableCondition(temp_name, parse.ConditionEnum.INITIAL)]
+            block.insert(
+                pair.goto_path[-1] + 1,
+                parse.If(
+                    None,
+                    parse.invert_conditions(
+                        [
+                            parse.VariableCondition(
+                                temp_name, parse.ConditionEnum.INITIAL
+                            )
+                        ]
+                    ),
+                    stmts,
                 ),
-                stmts,
             )
-            block.insert(pair.goto_path[-1] + 1, if_stmt)
         # Update label_block_index
         #
         # Step 4, move the goto statement down to child block from step 2
