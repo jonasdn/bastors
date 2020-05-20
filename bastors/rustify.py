@@ -5,6 +5,8 @@ from enum import Enum
 import bastors.parse as parse
 from bastors.visitor import Visitor
 
+# pylint: disable=C0116
+
 # Represent a line of Rust code at an indentation level
 Line = namedtuple("Line", ["indent", "code"])
 
