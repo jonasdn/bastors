@@ -1,10 +1,9 @@
 """ Functions to help with debugging """
-from collections import defaultdict
-from collections import namedtuple
+import sys
 import bastors.parse as parse
 from bastors.visitor import Visitor
 
-import sys
+# pylint: disable=C0116
 
 
 def expression(exp):
