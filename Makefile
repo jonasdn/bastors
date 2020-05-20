@@ -7,7 +7,7 @@ PROGRAM = bastors.py
 ALL_PY = $(TESTS) $(MODULES) $(PROGRAM)
 
 test: $(TESTS)
-	python -m unittest $^
+	python3 -m unittest $^
 
 lint: $(ALL_PY)
 	flake8 $(ALL_PY)
