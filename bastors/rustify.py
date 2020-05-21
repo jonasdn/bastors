@@ -157,7 +157,7 @@ class Rustify(Visitor):
     def visit_End(self, node):
         # pylint: disable=unused-argument
         self._crates.add("std::process")
-        self._code[self._context].append(Line(self._indent, "process::exit(0x0);"))
+        self.__add_line(self._indent, "process::exit(0x0);")
 
     def visit_Input(self, node):
         self._crates.add("std::io")
@@ -184,7 +184,7 @@ class Rustify(Visitor):
         else:
             argument = "&mut state"
         code = "f_%s(%s);" % (node.target_label, argument)
-        self._code[self._context].append(Line(self._indent, code))
+        self.__add_line(self._indent, code)
 
     def visit_Return(self, node):
         # pylint: disable=unused-argument
@@ -198,8 +198,7 @@ class Rustify(Visitor):
             self._variables.add((let_node.lval.var, VariableTypeEnum.INTEGER))
 
         code = "%s = %s;" % (expression(let_node.lval), expression(let_node.rval),)
-
-        self._code[self._context].append(Line(self._indent, code))
+        self.__add_line(self._indent, code)
 
     def visit_Print(self, print_node):
         """ Generate Rust from TinyBasic PRINT, by ways of the println! macro
@@ -207,7 +206,7 @@ class Rustify(Visitor):
         num = len(print_node.exp_list)
         arguments = ",".join([expression(exp) for exp in print_node.exp_list])
         code = 'println!("%s", %s);' % ("{}" * num, arguments)
-        self._code[self._context].append(Line(self._indent, code))
+        self.__add_line(self._indent, code)
 
     def visit_Loop(self, loop_node):
         """ Generate Rust code from a TinyBasic (IF/)GOTO loop.
@@ -225,7 +224,7 @@ class Rustify(Visitor):
                     }
                 }
         """
-        self._code[self._context].append(Line(self._indent, "loop {"))
+        self.__add_line(self._indent, "loop {")
         self._indent = self._indent + 1
         for statement in loop_node.statements:
             self.visit(statement)
@@ -233,12 +232,12 @@ class Rustify(Visitor):
         if loop_node.conditions is not None:
             conditions = parse.invert_conditions(loop_node.conditions)
             code = "if %s {" % format_condition(conditions)
-            self._code[self._context].append(Line(self._indent, code))
-            self._code[self._context].append(Line(self._indent + 1, "break;"))
-            self._code[self._context].append(Line(self._indent, "}"))
+            self.__add_line(self._indent, code)
+            self.__add_line(self._indent + 1, "break;")
+            self.__add_line(self._indent, "}")
 
         self._indent = self._indent - 1
-        self._code[self._context].append(Line(self._indent, "}"))
+        self.__add_line(self._indent, "}")
 
     def visit_Break(self, node):
         # pylint: disable=unused-argument
@@ -248,11 +247,11 @@ class Rustify(Visitor):
         """ Generate Rust code from TInyBasic IF statement, the grunt work is
             performed by the format_condition() function. """
         code = "if %s {" % format_condition(if_node.conditions)
-        self._code[self._context].append(Line(self._indent, code))
+        self.__add_line(self._indent, code)
 
         self._indent = self._indent + 1
         for statement in if_node.statements:
             self.visit(statement)
         self._indent = self._indent - 1
 
-        self._code[self._context].append(Line(self._indent, "}"))
+        self.__add_line(self._indent, "}")
