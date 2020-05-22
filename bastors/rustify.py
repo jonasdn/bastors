@@ -175,10 +175,11 @@ class Rustify(Visitor):
                 self._indent + 1, "io::stdin().read_line(&mut input).unwrap();"
             )
             self.__add_line(self._indent + 1, "match input.trim().parse::<i32>() {")
-            self.__add_line(
-                self._indent + 2, "Ok(i) => { %s = i; break }," % expression(var)
-            )
-            self.__add_line(self._indent + 2, 'Err(_) => println!("invalid number")')
+            self.__add_line(self._indent + 2, "Ok(i) => {")
+            self.__add_line(self._indent + 3, "%s = i;" % expression(var))
+            self.__add_line(self._indent + 3, "break;")
+            self.__add_line(self._indent + 2, "}")
+            self.__add_line(self._indent + 2, 'Err(_) => println!("invalid number"),')
             self.__add_line(self._indent + 1, "}")
             self.__add_line(self._indent, "}")
 
