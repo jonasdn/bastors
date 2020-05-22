@@ -110,14 +110,15 @@ class Rustify(Visitor):
                 print("%s%s: %s," % (" " * 4, var, type_rep), file=file)
             print("}\n", file=file)
 
-            init_state = "let mut state: State = State { "
+            decl = list()
+            decl.append(Line(self._indent, "let mut state: State = State {"))
             for var, var_type in sorted(self._variables):
                 if var_type == VariableTypeEnum.BOOLEAN:
-                    init_state += "%s: false, " % var
+                    decl.append(Line(self._indent + 1, "%s: false," % var))
                 else:
-                    init_state += "%s: 0, " % var
-            init_state += " };"
-            self._code["main"].insert(0, Line(self._indent, init_state))
+                    decl.append(Line(self._indent + 1, "%s: 0," % var))
+            decl.append(Line(self._indent, "};"))
+            self._code["main"] = decl + self._code["main"]
 
     def __output_function(self, name, code, argument, file):
         print("fn %s(%s) {" % (name, argument), file=file)
