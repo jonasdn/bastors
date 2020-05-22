@@ -156,8 +156,11 @@ class Rustify(Visitor):
 
     def visit_End(self, node):
         # pylint: disable=unused-argument
-        self._crates.add("std::process")
-        self.__add_line(self._indent, "process::exit(0x0);")
+        if self._context == "main":
+            self.__add_line(self._indent, "return;")
+        else:
+            self._crates.add("std::process")
+            self.__add_line(self._indent, "process::exit(0x0);")
 
     def visit_Input(self, node):
         self._crates.add("std::io")
