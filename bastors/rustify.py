@@ -209,21 +209,7 @@ class Rustify(Visitor):
         self.__add_line(self._indent, code)
 
     def visit_Loop(self, loop_node):
-        """ Generate Rust code from a TinyBasic (IF/)GOTO loop.
-
-            Turn:
-                line-number [statement]
-                [...]
-                IF exp GOTO line-number
-            Into:
-                loop {
-                    [statement]
-                    [...]
-                    if !exp {
-                        break
-                    }
-                }
-        """
+        """ Generate Rust code from a Loop statement """
         self.__add_line(self._indent, "loop {")
         self._indent = self._indent + 1
         for statement in loop_node.statements:
