@@ -27,14 +27,16 @@ This can be transpiled to Rust with this invocation:
 
 ```
 $ ./bastors.py programs/fibonacci.bas 
-use std::process;
 struct State {
     a: i32,
     b: i32,
 }
 
 fn main() {
-    let mut state: State = State { a: 0, b: 0,  };
+    let mut state: State = State {
+        a: 0,
+        b: 0,
+    };
     state.a = 0;
     state.b = 1;
     loop {
@@ -45,7 +47,6 @@ fn main() {
             break;
         }
     }
-    process::exit(0x0);
 }
 ```
 
@@ -149,7 +150,6 @@ And the generated Rust:
 
 ```
 use std::io;
-use std::process;
 struct State {
     g: i32,
     h: i32,
@@ -170,14 +170,28 @@ fn f_200(state: &mut State) {
 }
 
 fn main() {
-    let mut state: State = State { g: 0, h: 0, m: 0, r: 0, s: 0, t1: false, t2: false, t3: false, x: 0, y: 0,  };
+    let mut state: State = State {
+        g: 0,
+        h: 0,
+        m: 0,
+        r: 0,
+        s: 0,
+        t1: false,
+        t2: false,
+        t3: false,
+        x: 0,
+        y: 0,
+    };
     println!("{}", "Think of a number.");
     loop {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         match input.trim().parse::<i32>() {
-            Ok(i) => { state.s = i; break },
-            Err(_) => println!("invalid number")
+            Ok(i) => {
+                state.s = i;
+                break;
+            }
+            Err(_) => println!("invalid number"),
         }
     }
     f_200(&mut state);
@@ -192,16 +206,22 @@ fn main() {
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 match input.trim().parse::<i32>() {
-                    Ok(i) => { state.x = i; break },
-                    Err(_) => println!("invalid number")
+                    Ok(i) => {
+                        state.x = i;
+                        break;
+                    }
+                    Err(_) => println!("invalid number"),
                 }
             }
             loop {
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 match input.trim().parse::<i32>() {
-                    Ok(i) => { state.y = i; break },
-                    Err(_) => println!("invalid number")
+                    Ok(i) => {
+                        state.y = i;
+                        break;
+                    }
+                    Err(_) => println!("invalid number"),
                 }
             }
             if state.x < 0 || state.x > 9 || state.y < 0 || state.y > 9 {
@@ -242,7 +262,7 @@ fn main() {
         if state.g != state.x || state.h != state.y {
             state.t2 = state.m > 6;
             if !state.t2 {
-                println!("{}{}{}", "You have taken ",state.m," turns so far.");
+                println!("{}{}{}", "You have taken ", state.m, " turns so far.");
                 state.t3 = true;
             }
         }
@@ -252,11 +272,11 @@ fn main() {
     }
     if !state.t2 {
         println!("{}", "...RIGHT HERE!");
-        println!("{}{}{}", "You took ",state.m," turns to find it.");
-        process::exit(0x0);
+        println!("{}{}{}", "You took ", state.m, " turns to find it.");
+        return;
     }
     println!("{}", "You have taken too long over this. You lose!");
-    process::exit(0x0);
+    return;
 }
 
 ```
