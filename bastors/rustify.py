@@ -207,7 +207,7 @@ class Rustify(Visitor):
         """ Generate Rust from TinyBasic PRINT, by ways of the println! macro
         and the: println!()"{}", arguments), notation. """
         num = len(print_node.exp_list)
-        arguments = ",".join([expression(exp) for exp in print_node.exp_list])
+        arguments = ", ".join([expression(exp) for exp in print_node.exp_list])
         code = 'println!("%s", %s);' % ("{}" * num, arguments)
         self.__add_line(self._indent, code)
 
