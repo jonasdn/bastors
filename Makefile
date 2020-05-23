@@ -8,9 +8,3 @@ ALL_PY = $(TESTS) $(MODULES) $(PROGRAM)
 
 test: $(TESTS)
 	python3 -m unittest $^
-
-lint: $(ALL_PY)
-	flake8 $(ALL_PY)
-
-format: $(ALL_PY)
-	black $(ALL_PY)
