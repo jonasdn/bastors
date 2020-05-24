@@ -29,8 +29,8 @@ class TestGotoELim(unittest.TestCase):
                 with open(os.path.join(programs_path, filename)) as basic:
                     try:
                         program = parse.Parser(basic.read()).parse()
-                    except parse.ParseError:
-                        self.fail()
+                    except parse.ParseError as err:
+                        self.fail(err)
 
                     purged = eliminate_goto(program)
                     self.__assert_compile(purged, "1_1_a")
