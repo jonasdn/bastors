@@ -11,6 +11,7 @@ import glob
 import os
 import subprocess
 import sys
+import tempfile
 import bastors.parse as parse
 import bastors.debug as debug
 from bastors.goto_elimination import eliminate_goto, classify_goto
@@ -18,28 +19,29 @@ from bastors.rustify import Rustify
 
 
 class TestGotoELim(unittest.TestCase):
-    def __assert_compile(self, program, name):
-        rs = "%s.rs" % name
-        with open(rs, "w") as out:
+    def __assert_compile(self, program):
+        with tempfile.NamedTemporaryFile(suffix=".rs", mode="w") as temp:
             rust = Rustify()
             rust.visit(eliminate_goto(program))
-            rust.output(out)
+            rust.output(temp)
+            temp.flush()
 
-        rc = subprocess.call(["rustc", rs], subprocess.PIPE)
-        self.assertEqual(rc, 0)
+            rc = subprocess.call(["rustc", temp.name], subprocess.PIPE)
+            self.assertEqual(rc, 0)
 
-    def __assert_ref(self, program, out, ref):
+    def __assert_ref(self, program, ref):
         path = "%s/goto_cases/" % os.path.dirname(__file__)
+        with tempfile.NamedTemporaryFile() as temp:
+            debug.dump(program, temp.name)
 
-        debug.dump(program, out)
-
-        process = subprocess.Popen(
-            ["diff", "-u", os.path.join(path, ref), out], stdout=subprocess.PIPE,
-        )
-        output = process.communicate()[0]
-        if process.returncode != 0:
-            print(output.decode("ascii"))
-            self.assertEqual(process.returncode, 0)
+            process = subprocess.Popen(
+                ["diff", "-u", os.path.join(path, ref), temp.name],
+                stdout=subprocess.PIPE,
+            )
+            output = process.communicate()[0]
+            if process.returncode != 0:
+                print(output.decode("ascii"))
+                self.assertEqual(process.returncode, 0)
 
     def test_1_1_a(self):
         """
@@ -60,8 +62,8 @@ class TestGotoELim(unittest.TestCase):
             self.fail(err)
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "1_1_a.pseudo", "1_1_a.ref")
-        self.__assert_compile(program, "1_1_a")
+        self.__assert_ref(purged, "1_1_a.ref")
+        self.__assert_compile(program)
 
     def test_1_1_b(self):
         """
@@ -82,8 +84,8 @@ class TestGotoELim(unittest.TestCase):
             self.fail(err)
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "1_1_b.pseudo", "1_1_b.ref")
-        self.__assert_compile(program, "1_1_b")
+        self.__assert_ref(purged, "1_1_b.ref")
+        self.__assert_compile(program)
 
     def test_1_2(self):
         """
@@ -105,8 +107,8 @@ class TestGotoELim(unittest.TestCase):
             self.fail(err)
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "1_2.pseudo", "1_2.ref")
-        self.__assert_compile(program, "1_2")
+        self.__assert_ref(purged, "1_2.ref")
+        self.__assert_compile(program)
 
     def test_2_1_a(self):
         """
@@ -195,8 +197,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "2.1")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "2_1_a.purged", "2_1_a.ref")
-        self.__assert_compile(program, "2_1_a")
+        self.__assert_ref(purged, "2_1_a.ref")
+        self.__assert_compile(program)
 
     def test_2_2(self):
         """
@@ -286,8 +288,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "2.2")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "2_2.pseudo", "2_2.ref")
-        self.__assert_compile(purged, "2_2")
+        self.__assert_ref(program, "2_2.ref")
+        self.__assert_compile(purged)
 
     def test_3_1_a(self):
         """
@@ -353,8 +355,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "3.1")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "3_1_a.pseudo", "3_1_a.ref")
-        self.__assert_compile(purged, "3_1_a")
+        self.__assert_ref(program, "3_1_a.ref")
+        self.__assert_compile(purged)
 
     def test_3_1_b(self):
         """
@@ -439,8 +441,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "3.1")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "3_1_b.pseudo", "3_1_b.ref")
-        self.__assert_compile(purged, "3_1_b")
+        self.__assert_ref(program, "3_1_b.ref")
+        self.__assert_compile(purged)
 
     def test_3_2(self):
         """
@@ -507,8 +509,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "3.2")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "3_2.pseudo", "3_2.ref")
-        self.__assert_compile(purged, "3_2")
+        self.__assert_ref(program, "3_2.ref")
+        self.__assert_compile(purged)
 
     def test_4_1(self):
         """
@@ -608,8 +610,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "4.1")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "4_1.pseudo", "4_1.ref")
-        self.__assert_compile(purged, "4_1")
+        self.__assert_ref(program, "4_1.ref")
+        self.__assert_compile(purged)
 
     def test_4_2(self):
         """
@@ -709,8 +711,8 @@ class TestGotoELim(unittest.TestCase):
         self.assertEqual(classify_goto(program), "4.2")
 
         purged = eliminate_goto(program)
-        self.__assert_ref(program, "4_2.pseudo", "4_2.ref")
-        self.__assert_compile(purged, "4_2")
+        self.__assert_ref(program, "4_2.ref")
+        self.__assert_compile(purged)
 
     def test_SP1(self):
         """
@@ -737,8 +739,8 @@ class TestGotoELim(unittest.TestCase):
             self.fail(err)
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "sp1.pseudo", "sp1.ref")
-        self.__assert_compile(program, "sp1")
+        self.__assert_ref(purged, "sp1.ref")
+        self.__assert_compile(program)
 
     def test_SP2(self):
         """
@@ -764,21 +766,5 @@ class TestGotoELim(unittest.TestCase):
             self.fail(err)
 
         purged = eliminate_goto(program)
-        self.__assert_ref(purged, "sp2.pseudo", "sp2.ref")
-        self.__assert_compile(program, "sp2")
-
-    def tearDown(self):
-        globs = [
-            u"1_1*",
-            u"1_2*",
-            u"2_1*",
-            u"2_2*",
-            u"3_1*",
-            u"3_2*",
-            u"4_1*",
-            u"4_2*",
-            u"sp*",
-        ]
-        for g in globs:
-            for file in glob.glob(g):
-                os.unlink(os.path.abspath(file))
+        self.__assert_ref(purged, "sp2.ref")
+        self.__assert_compile(program)
