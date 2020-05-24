@@ -10,13 +10,13 @@ class TestParse(unittest.TestCase):
                       30 GOTO A
                       40 END
                   """
-        try:
+        with self.assertRaises(ParseError) as ctx:
             parser = parse.Parser(program)
             node = parser.parse()
-            print(node)
-        except ParseError as err:
-            self.assertEqual(err.line, 3)
-            self.assertEqual(err.col, 31)
+            _ = node  # avoid node being unused
+
+        self.assertEqual(ctx.exception.line, 3)
+        self.assertEqual(ctx.exception.col, 31)
 
     def test_comment(self):
         program = """ REM
