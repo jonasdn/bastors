@@ -157,10 +157,10 @@ class TestLex(unittest.TestCase):
         program = """ 10 PRINT "Hello World"
                       20 GOFO 10
                   """
-        try:
+        with self.assertRaises(LexError) as ctx:
             lexer = lex.Lexer(program)
             tokens = lexer.get_tokens()
-            print(tokens)
-        except LexError as err:
-            self.assertEqual(err.line, 2)
-            self.assertEqual(err.col, 26)
+            _ = tokens  # avoid unused variable
+
+        self.assertEqual(ctx.exception.line, 2)
+        self.assertEqual(ctx.exception.col, 26)
