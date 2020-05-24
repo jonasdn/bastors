@@ -57,7 +57,7 @@ class TestGotoELim(unittest.TestCase):
         try:
             program = parse.Parser(source).parse()
         except parse.ParseError:
-            self.assertFalse(True)
+            self.fail()
 
         purged = eliminate_goto(program)
         self.__assert_ref(purged, "1_1_a.pseudo", "1_1_a.ref")
@@ -79,7 +79,7 @@ class TestGotoELim(unittest.TestCase):
         try:
             program = parse.Parser(source).parse()
         except parse.ParseError:
-            self.assertFalse(True)
+            self.fail()
 
         purged = eliminate_goto(program)
         self.__assert_ref(purged, "1_1_b.pseudo", "1_1_b.ref")
@@ -102,7 +102,7 @@ class TestGotoELim(unittest.TestCase):
         try:
             program = parse.Parser(source).parse()
         except parse.ParseError:
-            self.assertFalse(True)
+            self.fail()
 
         purged = eliminate_goto(program)
         self.__assert_ref(purged, "1_2.pseudo", "1_2.ref")
@@ -734,7 +734,7 @@ class TestGotoELim(unittest.TestCase):
         try:
             program = parse.Parser(source).parse()
         except parse.ParseError:
-            self.assertFalse(True)
+            self.fail()
 
         purged = eliminate_goto(program)
         self.__assert_ref(purged, "sp1.pseudo", "sp1.ref")
@@ -761,7 +761,7 @@ class TestGotoELim(unittest.TestCase):
         try:
             program = parse.Parser(source).parse()
         except parse.ParseError:
-            self.assertFalse(True)
+            self.fail()
 
         purged = eliminate_goto(program)
         self.__assert_ref(purged, "sp2.pseudo", "sp2.ref")

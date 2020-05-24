@@ -30,7 +30,7 @@ class TestGotoELim(unittest.TestCase):
                     try:
                         program = parse.Parser(basic.read()).parse()
                     except parse.ParseError:
-                        self.assertFalse(True)
+                        self.fail()
 
                     purged = eliminate_goto(program)
                     self.__assert_compile(purged, "1_1_a")

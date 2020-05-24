@@ -29,6 +29,5 @@ class TestParse(unittest.TestCase):
         try:
             parser = parse.Parser(program)
             parser.parse()
-        except ParseError as err:
-            print(err)
-            self.assertTrue(False)
+        except ParseError:
+            self.fail()
