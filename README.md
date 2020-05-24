@@ -287,7 +287,7 @@ A big reason for me to write this tool is to improve my Python. Any help would b
 Any and all code review would be very kind!
 
 ## Running tests
-Bastors includes tests that aim to make development easier. It will test the lexing-, parsing-, GOTO elimination- and rustification phases. The tests can be run by running ```make test```.
+Bastors includes tests that aim to make development easier. It will test the lexing-, parsing-, GOTO elimination- and rustification phases. The tests can be run by running ```py.test tests```.
 
 ## TinyBasic Grammar
 The grammar understood for this TinyBasic is as follows:
