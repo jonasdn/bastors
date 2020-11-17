@@ -257,6 +257,12 @@ class Parser:  # pylint: disable=too-few-public-methods
             goto = self.__parse_goto(label)
             return If(label, conditions, [goto])
 
+        if self._current_token.type == lex.TokenEnum.NUMBER:
+            target = int(self._current_token.value)
+            self.__eat(lex.TokenEnum.NUMBER)
+            goto = Goto(label, target)
+            return If(label, conditions, [goto])
+
         if self._current_token.value == "IF":
             self.__eat(lex.TokenEnum.STATEMENT)
             return self.__parse_if(conditions, None)
