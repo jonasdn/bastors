@@ -98,6 +98,8 @@ Print = namedtuple("Print", ["label", "exp_list"])
 Gosub = namedtuple("Gosub", ["label", "target_label"])
 Return = namedtuple("Return", ["label"])
 Input = namedtuple("Input", ["label", "variables"])
+For = namedtuple("For", ["var", "start", "stop", "step", "statements", "label"])
+Next = namedtuple("Next", ["label"])
 End = namedtuple("End", ["label"])
 
 ArithmeticExpression = namedtuple("ArithmeticExpression", ["left", "operator", "right"])
@@ -306,6 +308,48 @@ class Parser:  # pylint: disable=too-few-public-methods
 
         return Input(label, variables)
 
+    def __parse_for(self, label):
+        var = VariableExpression(self._current_token.value.lower())
+        self.__eat(lex.TokenEnum.VARIABLE)
+        self.__eat(lex.TokenEnum.RELATION_OP)
+
+        start = int(self._current_token.value)
+        self.__eat(lex.TokenEnum.NUMBER)
+
+        if (self._current_token.type != lex.TokenEnum.STATEMENT or
+            self._current_token.value != "TO"):
+            # parse error: missing TO
+            line = self._current_token.line
+            col = self._current_token.col
+            raise ParseError("expected TO keyword [%d:%d]" % (line, col), line, col)
+        self.__eat(lex.TokenEnum.STATEMENT)
+
+        stop = int(self._current_token.value)
+        self.__eat(lex.TokenEnum.NUMBER)
+
+        if (self._current_token.type == lex.TokenEnum.STATEMENT and
+            self._current_token.value == "STEP"):
+            self.__eat(lex.TokenEnum.STATEMENT)
+            step = int(self._current_token.value)
+            self.__eat(lex.TokenEnum.NUMBER)
+        else:
+            step = 1
+
+        statements = list()
+        while True:
+            statement = self.__process_line()
+            if statement is None:
+                line = self._current_token.line
+                col = self._current_token.col
+                raise ParseError("missing NEXT [%d:%d]" % (line, col), line, col)
+            
+            if isinstance(statement, Next):
+                break;
+            else:
+                statements.append(statement)
+
+        return For(var, start, stop, step, statements, label)
+
     def __parse_statement(self, label):
         token = self._current_token
         if token.type == lex.TokenEnum.EOF:
@@ -326,6 +370,11 @@ class Parser:  # pylint: disable=too-few-public-methods
             return self.__parse_gosub(label)
         if token.value == "INPUT":
             return self.__parse_input(label)
+        if token.value == "FOR":
+            return self.__parse_for(label)
+        if token.value == "NEXT":
+            self.__eat(lex.TokenEnum.VARIABLE)
+            return Next(label)
         if token.value == "END":
             return End(label)
 

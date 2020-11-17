@@ -18,6 +18,19 @@ class TestParse(unittest.TestCase):
         self.assertEqual(ctx.exception.line, 3)
         self.assertEqual(ctx.exception.col, 31)
 
+
+    def test_for(self):
+        program = """ 20 FOR I = 1 TO 15 STEP 2
+                      30 PRINT I
+                      40 NEXT I
+                      50 END
+                """
+        try:
+            parser = parse.Parser(program)
+            parser.parse()
+        except ParseError as err:
+            self.fail(err)
+
     def test_comment(self):
         program = """ REM
                       REM --- This is a comment

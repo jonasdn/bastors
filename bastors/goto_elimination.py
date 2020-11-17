@@ -44,7 +44,7 @@ class GotoLabelPair:
             statement = statements[index]
 
             if i == len(path) - 2:
-                return isinstance(statement, Loop)
+                return isinstance(statement, Loop) or isinstance(statement, parse.For)
 
             if isinstance(statement, (Loop, parse.If)):
                 return self.__path_in_loop(statement.statements, path[1:])

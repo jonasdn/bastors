@@ -65,6 +65,31 @@ class TestLex(unittest.TestCase):
         ]
         self.__assert_tokens(program, expected)
 
+    def test_for(self):
+        program = """
+            20 FOR I = 1 TO 15 STEP 2
+            30 PRINT I
+            40 NEXT I
+        """
+        expected = [
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.RELATION_OP,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.NUMBER,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+        ]
+        self.__assert_tokens(program, expected)
+
     def test_all(self):
         program = """
             10 PRINT "HELLO WORLD"

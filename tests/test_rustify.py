@@ -11,7 +11,7 @@ from bastors.goto_elimination import eliminate_goto, classify_goto
 from bastors.rustify import Rustify
 
 
-class TestGotoELim(unittest.TestCase):
+class TestRustify(unittest.TestCase):
     def __assert_compile(self, program, name):
         rs = "%s.rs" % name
         with open(rs, "w") as out:

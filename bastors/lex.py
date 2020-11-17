@@ -49,7 +49,7 @@ class TokenEnum(Enum):
 Token = namedtuple("Token", ["value", "type", "line", "col"])
 
 
-STATEMENTS = [
+KEYWORDS = [
     "PRINT",
     "IF",
     "THEN",
@@ -62,6 +62,10 @@ STATEMENTS = [
     "LIST",
     "RUN",
     "END",
+    "FOR",
+    "TO",
+    "STEP",
+    "NEXT"
 ]
 
 
@@ -224,7 +228,7 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
             # If next char is a self._lexeme separator then we should check that we
             # have a known token here.
             if self.__complete_lexeme():
-                if self._lexeme in STATEMENTS:
+                if self._lexeme in KEYWORDS:
                     self.__append_token(TokenEnum.STATEMENT)
                     self._lexeme = ""
                     continue
