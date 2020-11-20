@@ -31,6 +31,18 @@ class TestParse(unittest.TestCase):
         except ParseError as err:
             self.fail(err)
 
+
+    def test_assign(self):
+        program = """ 20 I=5
+                      30 PRINT I
+                      40 END
+                """
+        try:
+            parser = parse.Parser(program)
+            parser.parse()
+        except ParseError as err:
+            self.fail(err)
+
     def test_comment(self):
         program = """ REM
                       REM --- This is a comment

@@ -403,6 +403,9 @@ class Parser:  # pylint: disable=too-few-public-methods
         if fwd_label is not None:
             label = fwd_label
 
+        if self._current_token.type == lex.TokenEnum.VARIABLE:
+            return self.__parse_let(label)
+
         if self._current_token.type == lex.TokenEnum.COMMENT:
             self.__eat(lex.TokenEnum.COMMENT)
             return self.__process_line(label)
