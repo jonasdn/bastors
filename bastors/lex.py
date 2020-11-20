@@ -221,7 +221,7 @@ class Lexer:  # pylint: disable=too-few-public-methods,too-many-branches
                 self._lexeme += char
 
             # Symbols does not need separators around them to be valid
-            if self.__symbol():
+            if self._lexeme not in string.whitespace and self.__symbol():
                 self._lexeme = ""
                 continue
 

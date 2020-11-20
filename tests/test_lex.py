@@ -10,6 +10,33 @@ class TestLex(unittest.TestCase):
         for i, token in enumerate(tokens):
             self.assertEqual(token.type, expected[i])
 
+    def test_relop(self):
+        program = """
+            LET A= 1
+            LET B = A+2
+            IF A <> B THEN B=3 """
+        expected = [
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.RELATION_OP,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.RELATION_OP,
+            TokenEnum.VARIABLE,
+            TokenEnum.ARITHMETIC_OP,
+            TokenEnum.NUMBER,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.RELATION_OP,
+            TokenEnum.VARIABLE,
+            TokenEnum.STATEMENT,
+            TokenEnum.VARIABLE,
+            TokenEnum.RELATION_OP,
+            TokenEnum.NUMBER
+        ]
+        self.__assert_tokens(program, expected)
+
     def test_let(self):
         program = """
             LET A=1
