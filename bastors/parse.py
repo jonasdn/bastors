@@ -390,7 +390,7 @@ class Parser:  # pylint: disable=too-few-public-methods
             self._current_token.col,
         )
 
-    def __process_line(self):
+    def __process_line(self, fwd_label=None):
         while self._current_token.type == lex.TokenEnum.COMMENT:
             self.__eat(lex.TokenEnum.COMMENT)
 
@@ -399,6 +399,13 @@ class Parser:  # pylint: disable=too-few-public-methods
             self.__eat(lex.TokenEnum.NUMBER)
         else:
             label = None
+
+        if fwd_label is not None:
+            label = fwd_label
+
+        if self._current_token.type == lex.TokenEnum.COMMENT:
+            self.__eat(lex.TokenEnum.COMMENT)
+            return self.__process_line(label)
 
         return self.__parse_statement(label)
 
